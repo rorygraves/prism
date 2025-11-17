@@ -1,0 +1,24 @@
+{
+  "name": "prism-e2e-tests",
+  "version": "0.1.0",
+  "description": "End-to-end tests for Prism chat demo",
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "test:ui": "playwright test --ui",
+    "test:debug": "playwright test --debug",
+    "test:headed": "playwright test --headed"
+  },
+  "keywords": [
+    "prism",
+    "e2e",
+    "playwright"
+  ],
+  "author": "Prism Team",
+  "license": "MIT",
+  "devDependencies": {
+    "@playwright/test": "^1.41.0",
+    "@types/node": "^20.11.5",
+    "typescript": "^5.3.3"
+  }
+}

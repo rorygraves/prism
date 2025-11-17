@@ -1,0 +1,25 @@
+{
+  "name": "prism-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "chat-demo"
+  ],
+  "scripts": {
+    "build:client": "npm run build --workspace=@prism/client",
+    "build:vue": "npm run build --workspace=@prism/vue",
+    "build": "npm run build:client && npm run build:vue",
+    "dev": "npm run dev --workspace=chat-demo",
+    "test": "vitest",
+    "lint": "eslint packages --ext .ts && eslint chat-demo/src --ext .ts,.vue"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.5",
+    "eslint": "^8.56.0",
+    "prettier": "^3.2.4",
+    "typescript": "^5.3.3",
+    "vitest": "^1.2.0"
+  }
+}

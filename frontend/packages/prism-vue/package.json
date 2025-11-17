@@ -1,0 +1,47 @@
+{
+  "name": "@prism/vue",
+  "version": "0.1.0",
+  "description": "Vue 3 composables for Prism protocol",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest",
+    "lint": "eslint src --ext .ts",
+    "format": "prettier --write src"
+  },
+  "keywords": [
+    "prism",
+    "vue",
+    "vue3",
+    "composable",
+    "realtime"
+  ],
+  "author": "Prism Team",
+  "license": "MIT",
+  "peerDependencies": {
+    "vue": "^3.3.0"
+  },
+  "dependencies": {
+    "@prism/client": "workspace:*"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^6.19.0",
+    "@typescript-eslint/parser": "^6.19.0",
+    "eslint": "^8.56.0",
+    "prettier": "^3.2.4",
+    "typescript": "^5.3.3",
+    "vitest": "^1.2.0",
+    "vue": "^3.4.15"
+  }
+}
