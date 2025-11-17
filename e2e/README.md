@@ -21,12 +21,25 @@ cd e2e
 npm test
 ```
 
+### ✅ GitHub Actions CI
+
+**E2E tests run automatically in GitHub Actions** on every push and pull request:
+
+- **Chromium**: ✅ Works perfectly in GitHub Actions
+- Standard Ubuntu Linux environment with proper permissions
+- Tests run headless on every CI build
+- Test reports and artifacts uploaded automatically
+
+See [.github/workflows/ci.yml](../.github/workflows/ci.yml) for configuration.
+
 ### ❌ Cloud/Container Environments
 
-**E2E tests do NOT work in cloud/containerized environments** due to browser compatibility issues:
+**E2E tests do NOT work in restricted cloud/containerized environments** (like Claude Code on the Web) due to browser compatibility issues:
 
 - **Chromium**: Crashes due to shared memory permission errors
 - **Firefox**: Cannot run as root in user sessions
+
+**Note:** GitHub Actions uses standard Linux (not restricted containers), so tests work fine there.
 
 See [CLOUD_SETUP.md](../CLOUD_SETUP.md) for details.
 

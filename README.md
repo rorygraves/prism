@@ -1,5 +1,7 @@
 # Prism: A Versioned Object Synchronization Protocol
 
+[![CI](https://github.com/rorygraves/prism/actions/workflows/ci.yml/badge.svg)](https://github.com/rorygraves/prism/actions/workflows/ci.yml)
+
 Prism is a lightweight, language-agnostic library for real-time object synchronization between distributed clients and servers. It provides automatic delta-based updates, intelligent caching, filtered object views, seamless reconnection handling, and smart request/response hydration.
 
 ## Project Structure
