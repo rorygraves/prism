@@ -20,9 +20,18 @@ while [[ $# -gt 0 ]]; do
             STOP_AFTER=false
             shift
             ;;
+        --backend|-b)
+            export BACKEND_TYPE="$2"
+            shift 2
+            ;;
+        python|play|http4s)
+            export BACKEND_TYPE="$1"
+            shift
+            ;;
         *)
             log_error "Unknown option: $1"
-            echo "Usage: $0 [--keep-alive] [--ui]"
+            echo "Usage: $0 [--keep-alive] [--ui] [--backend|-b TYPE | python|play|http4s]"
+            echo "  Backend types: python (default), play, http4s"
             exit 1
             ;;
     esac

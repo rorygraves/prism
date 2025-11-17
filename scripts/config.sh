@@ -4,10 +4,15 @@
 # Project directories
 export PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 export BACKEND_DIR="$PROJECT_ROOT/backend"
+export BACKEND_SCALA_DIR="$PROJECT_ROOT/backend-scala"
 export FRONTEND_DIR="$PROJECT_ROOT/frontend"
 export E2E_DIR="$PROJECT_ROOT/e2e"
 export SCRIPTS_DIR="$PROJECT_ROOT/scripts"
 export LOGS_DIR="$PROJECT_ROOT/logs"
+
+# Backend type: python, play, or http4s
+# Can be overridden by PRISM_BACKEND environment variable
+export BACKEND_TYPE="${PRISM_BACKEND:-python}"
 
 # Server ports
 export BACKEND_PORT=8000
