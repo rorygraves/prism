@@ -29,14 +29,11 @@ class DeltaComputer:
         """
         if from_obj.id != to_obj.id:
             raise ValueError(
-                f"Cannot compute delta between different objects: "
-                f"{from_obj.id} vs {to_obj.id}"
+                f"Cannot compute delta between different objects: " f"{from_obj.id} vs {to_obj.id}"
             )
 
         if from_obj.version >= to_obj.version:
-            raise ValueError(
-                f"Invalid version ordering: {from_obj.version} >= {to_obj.version}"
-            )
+            raise ValueError(f"Invalid version ordering: {from_obj.version} >= {to_obj.version}")
 
         # Compute JSON Patch
         patch = jsonpatch.make_patch(from_obj.data, to_obj.data)
@@ -64,8 +61,7 @@ class DeltaComputer:
         """
         if obj.id != delta.object_id:
             raise ValueError(
-                f"Delta object ID mismatch: delta for {delta.object_id}, "
-                f"applied to {obj.id}"
+                f"Delta object ID mismatch: delta for {delta.object_id}, " f"applied to {obj.id}"
             )
 
         if obj.version != delta.from_version:

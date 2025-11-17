@@ -149,7 +149,9 @@ class ChatBusinessHandler(BusinessHandler):
             created_by=req.creator_id,
         )
 
-        self.logger.info(f"[CREATE_ROOM] Generated room ID: {room_id}, initial members: {room.member_ids}")
+        self.logger.info(
+            f"[CREATE_ROOM] Generated room ID: {room_id}, initial members: {room.member_ids}"
+        )
 
         # Save as Prism object
         obj = PrismObject(id=room_id, version=1, data=room.model_dump(mode="json"))
@@ -159,7 +161,9 @@ class ChatBusinessHandler(BusinessHandler):
         # Update indexes
         self.rooms_by_name[room.name] = room_id
         self.room_messages[room_id] = []
-        self.logger.info(f"[CREATE_ROOM] Updated indexes - rooms_by_name: {self.rooms_by_name}, room_messages keys: {list(self.room_messages.keys())}")
+        self.logger.info(
+            f"[CREATE_ROOM] Updated indexes - rooms_by_name: {self.rooms_by_name}, room_messages keys: {list(self.room_messages.keys())}"
+        )
 
         # Update global room list and notify all subscribers
         await self._update_room_list()
@@ -208,9 +212,9 @@ class ChatBusinessHandler(BusinessHandler):
 
             # Notify subscribers
             await self.object_manager.notify_object_updated(new_obj)
-            self.logger.info(f"[JOIN_ROOM] Notified subscribers")
+            self.logger.info("[JOIN_ROOM] Notified subscribers")
         else:
-            self.logger.info(f"[JOIN_ROOM] User already a member, no changes made")
+            self.logger.info("[JOIN_ROOM] User already a member, no changes made")
 
         result = {
             "room": ObjectReference(
@@ -229,14 +233,18 @@ class ChatBusinessHandler(BusinessHandler):
         Returns:
             Message object reference
         """
-        self.logger.info(f"[SEND_MESSAGE] Sending message to room {req.room_id} from user {req.user_id}")
+        self.logger.info(
+            f"[SEND_MESSAGE] Sending message to room {req.room_id} from user {req.user_id}"
+        )
         message_id = f"msg-{uuid.uuid4().hex[:12]}"
 
         message = Message(
             id=message_id, room_id=req.room_id, user_id=req.user_id, content=req.content
         )
 
-        self.logger.info(f"[SEND_MESSAGE] Generated message ID: {message_id}, content length: {len(req.content)}")
+        self.logger.info(
+            f"[SEND_MESSAGE] Generated message ID: {message_id}, content length: {len(req.content)}"
+        )
 
         # Save as Prism object
         obj = PrismObject(id=message_id, version=1, data=message.model_dump(mode="json"))
@@ -247,20 +255,20 @@ class ChatBusinessHandler(BusinessHandler):
         if req.room_id not in self.room_messages:
             self.room_messages[req.room_id] = []
         self.room_messages[req.room_id].append(message_id)
-        self.logger.info(f"[SEND_MESSAGE] Updated room_messages - room {req.room_id} now has {len(self.room_messages[req.room_id])} messages")
+        self.logger.info(
+            f"[SEND_MESSAGE] Updated room_messages - room {req.room_id} now has {len(self.room_messages[req.room_id])} messages"
+        )
 
         # Notify subscribers about new message
         await self.object_manager.notify_object_updated(obj)
-        self.logger.info(f"[SEND_MESSAGE] Notified subscribers about new message")
+        self.logger.info("[SEND_MESSAGE] Notified subscribers about new message")
 
         # Return message reference with user reference
         result = {
             "message": ObjectReference(
                 id=message_id, version=1, filter_type="default", subscribe=True
             ).model_dump(),
-            "user": ObjectReference(
-                id=req.user_id, version=1, filter_type="default"
-            ).model_dump(),
+            "user": ObjectReference(id=req.user_id, version=1, filter_type="default").model_dump(),
         }
         self.logger.info(f"[SEND_MESSAGE] Returning result: {result}")
         return result
@@ -274,17 +282,23 @@ class ChatBusinessHandler(BusinessHandler):
         Returns:
             List of message references
         """
-        self.logger.info(f"[GET_ROOM_MESSAGES] Getting messages for room {req.room_id}, limit: {req.limit}")
+        self.logger.info(
+            f"[GET_ROOM_MESSAGES] Getting messages for room {req.room_id}, limit: {req.limit}"
+        )
         message_ids = self.room_messages.get(req.room_id, [])
         self.logger.info(f"[GET_ROOM_MESSAGES] Total messages in room: {len(message_ids)}")
 
         # Get last N messages
         recent_ids = message_ids[-req.limit :]
-        self.logger.info(f"[GET_ROOM_MESSAGES] Returning {len(recent_ids)} recent messages: {recent_ids}")
+        self.logger.info(
+            f"[GET_ROOM_MESSAGES] Returning {len(recent_ids)} recent messages: {recent_ids}"
+        )
 
         # Return as object references
         messages = [
-            ObjectReference(id=msg_id, version=1, filter_type="default", subscribe=True).model_dump()
+            ObjectReference(
+                id=msg_id, version=1, filter_type="default", subscribe=True
+            ).model_dump()
             for msg_id in recent_ids
         ]
 
@@ -332,7 +346,9 @@ class ChatBusinessHandler(BusinessHandler):
             raise ValueError(f"Room {room_id} not found")
 
         room = ChatRoom(**room_obj.data)
-        self.logger.info(f"[GET_ROOM] Found room: {room_id}, version: {room_obj.version}, members: {room.member_ids}")
+        self.logger.info(
+            f"[GET_ROOM] Found room: {room_id}, version: {room_obj.version}, members: {room.member_ids}"
+        )
 
         # Return room reference with member references
         result = {
@@ -349,7 +365,7 @@ class ChatBusinessHandler(BusinessHandler):
 
     async def _update_room_list(self) -> None:
         """Update the global room list object with room IDs and notify subscribers."""
-        self.logger.info(f"[UPDATE_ROOM_LIST] Updating global room list")
+        self.logger.info("[UPDATE_ROOM_LIST] Updating global room list")
 
         # Get all room IDs (just IDs, not full data)
         room_ids = list(self.rooms_by_name.values())
@@ -361,11 +377,13 @@ class ChatBusinessHandler(BusinessHandler):
         if room_list_obj:
             # Update existing
             new_version = room_list_obj.version + 1
-            self.logger.info(f"[UPDATE_ROOM_LIST] Updating existing room list, new version: {new_version}")
+            self.logger.info(
+                f"[UPDATE_ROOM_LIST] Updating existing room list, new version: {new_version}"
+            )
         else:
             # Create new
             new_version = 1
-            self.logger.info(f"[UPDATE_ROOM_LIST] Creating new room list object")
+            self.logger.info("[UPDATE_ROOM_LIST] Creating new room list object")
 
         # Store just the room IDs
         new_obj = PrismObject(
@@ -376,11 +394,13 @@ class ChatBusinessHandler(BusinessHandler):
 
         # Save triggers automatic notification to all subscribers
         await self.storage.save(new_obj)
-        self.logger.info(f"[UPDATE_ROOM_LIST] Saved room list, version {new_version}, {len(room_ids)} room IDs")
+        self.logger.info(
+            f"[UPDATE_ROOM_LIST] Saved room list, version {new_version}, {len(room_ids)} room IDs"
+        )
 
         # Notify all subscribers (Prism protocol behavior)
         await self.object_manager.notify_object_updated(new_obj)
-        self.logger.info(f"[UPDATE_ROOM_LIST] Notified all subscribers about room list update")
+        self.logger.info("[UPDATE_ROOM_LIST] Notified all subscribers about room list update")
 
     async def list_rooms(self) -> dict[str, Any]:
         """List all available chat rooms.
@@ -388,7 +408,7 @@ class ChatBusinessHandler(BusinessHandler):
         Returns:
             ObjectReference to the global room list for subscription
         """
-        self.logger.info(f"[LIST_ROOMS] Returning room list object reference")
+        self.logger.info("[LIST_ROOMS] Returning room list object reference")
 
         # Ensure room list object exists
         room_list_obj = await self.storage.get_current(self.ROOM_LIST_ID)

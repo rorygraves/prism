@@ -198,9 +198,7 @@ class PrismObjectManager:
         client = self.get_client_state(client_id)
 
         if msg.object_id not in client.subscriptions:
-            await self.send_error(
-                client_id, "NOT_SUBSCRIBED", f"Not subscribed to {msg.object_id}"
-            )
+            await self.send_error(client_id, "NOT_SUBSCRIBED", f"Not subscribed to {msg.object_id}")
             return
 
         # Update subscription filter
@@ -211,7 +209,9 @@ class PrismObjectManager:
         # Re-sync with new filter
         current_obj = await self.storage.get_current(msg.object_id)
         if current_obj:
-            filtered_obj = await self._apply_filter_cached(current_obj, msg.filter_type, msg.filter_params)
+            filtered_obj = await self._apply_filter_cached(
+                current_obj, msg.filter_type, msg.filter_params
+            )
             # Always send full object when filter changes, even if version matches
             await self._send_full_object(client_id, filtered_obj)
             client.update_version(msg.object_id, filtered_obj.version)
@@ -247,7 +247,9 @@ class PrismObjectManager:
             subscription: Client's subscription
         """
         # Apply filter
-        filtered_obj = await self._apply_filter_cached(obj, subscription.filter_type, subscription.filter_params)
+        filtered_obj = await self._apply_filter_cached(
+            obj, subscription.filter_type, subscription.filter_params
+        )
 
         # Smart sync
         await self._smart_sync(client_id, obj.id, filtered_obj)
@@ -379,6 +381,7 @@ class PrismObjectManager:
         if filter_params:
             # Simple hash of params for cache key
             import json
+
             params_str = json.dumps(filter_params, sort_keys=True)
             cache_key = f"{cache_key}:{params_str}"
 
@@ -397,9 +400,7 @@ class PrismObjectManager:
             client_id: Client identifier
             obj: Object to send
         """
-        message = FullObjectMessage(
-            id=obj.id, version=obj.version, data=obj.data, filtered=True
-        )
+        message = FullObjectMessage(id=obj.id, version=obj.version, data=obj.data, filtered=True)
         await self._send_message(client_id, message)
 
     async def _send_delta(self, client_id: str, delta: Delta) -> None:
@@ -417,9 +418,7 @@ class PrismObjectManager:
         )
         await self._send_message(client_id, message)
 
-    async def send_error(
-        self, client_id: str, code: str, message: str, **kwargs: Any
-    ) -> None:
+    async def send_error(self, client_id: str, code: str, message: str, **kwargs: Any) -> None:
         """Send error message to client.
 
         Args:

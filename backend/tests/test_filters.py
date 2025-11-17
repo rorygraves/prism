@@ -1,9 +1,10 @@
 """Tests for filter system."""
 
 import pytest
+
 from prism.core.types import PrismObject
 from prism.filters.base import FilterRegistry, FunctionFilter
-from prism.filters.common import FieldsFilter, ExcludeFieldsFilter, create_default_registry
+from prism.filters.common import ExcludeFieldsFilter, FieldsFilter, create_default_registry
 
 
 def test_fields_filter():
