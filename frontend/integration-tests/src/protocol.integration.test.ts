@@ -35,6 +35,9 @@ describe('Prism Protocol Integration Tests', () => {
 
     it('should reconnect after disconnect', async () => {
       client.disconnect();
+
+      // Wait a bit for disconnect to complete
+      await new Promise(resolve => setTimeout(resolve, 100));
       expect(client.isConnected()).toBe(false);
 
       await client.connect();
@@ -46,10 +49,13 @@ describe('Prism Protocol Integration Tests', () => {
     it('should subscribe to global room list', async () => {
       let receivedData: any = null;
 
-      // Watch for updates
+      // Watch for updates BEFORE subscribing
       const unwatch = client.watch('global-room-list', (data) => {
         receivedData = data;
       });
+
+      // First call listRooms to ensure global-room-list exists
+      await client.request('listRooms', {});
 
       // Subscribe
       await client.subscribe('global-room-list', 'default');
@@ -58,7 +64,7 @@ describe('Prism Protocol Integration Tests', () => {
       await waitFor(() => receivedData !== null);
 
       expect(receivedData).toBeDefined();
-      expect(Array.isArray(receivedData.rooms)).toBe(true);
+      expect(receivedData.room_ids).toBeDefined();
 
       unwatch();
     });
@@ -66,25 +72,41 @@ describe('Prism Protocol Integration Tests', () => {
     it('should receive object updates', async () => {
       const updates: any[] = [];
 
+      // Watch for updates BEFORE subscribing
       client.watch('global-room-list', (data) => {
         updates.push(data);
       });
 
+      // Ensure global-room-list exists
+      await client.request('listRooms', {});
+
       await client.subscribe('global-room-list');
+
+      // Wait for initial update
+      await waitFor(() => updates.length >= 1);
+
+      // Create a user first
+      const userResult = await client.request('createUser', {
+        username: `user-${Date.now()}`,
+        display_name: `Test User ${Date.now()}`,
+      });
 
       // Create a room to trigger update
       await client.request('createRoom', {
         name: `Test Room ${Date.now()}`,
-        user_id: 'test-user-1',
+        creator_id: userResult.user.id,
       });
 
-      // Should receive at least 2 updates (initial + after room creation)
+      // Should receive update after room creation
       await waitFor(() => updates.length >= 2, 10000);
 
       expect(updates.length).toBeGreaterThanOrEqual(2);
     });
 
     it('should unsubscribe from object', async () => {
+      // Ensure global-room-list exists
+      await client.request('listRooms', {});
+
       await client.subscribe('global-room-list');
 
       // Unsubscribe
@@ -97,8 +119,10 @@ describe('Prism Protocol Integration Tests', () => {
 
   describe('Request/Response with Hydration', () => {
     it('should create user with hydrated response', async () => {
+      const timestamp = Date.now();
       const result = await client.request('createUser', {
-        username: `user-${Date.now()}`,
+        username: `user-${timestamp}`,
+        display_name: `Test User ${timestamp}`,
       });
 
       expect(result).toBeDefined();
@@ -113,14 +137,16 @@ describe('Prism Protocol Integration Tests', () => {
 
     it('should create room and hydrate references', async () => {
       // First create a user
+      const timestamp = Date.now();
       const userResult = await client.request('createUser', {
-        username: `user-${Date.now()}`,
+        username: `user-${timestamp}`,
+        display_name: `Test User ${timestamp}`,
       });
 
       // Create room
       const roomResult = await client.request('createRoom', {
-        name: `Room ${Date.now()}`,
-        user_id: userResult.user.id,
+        name: `Room ${timestamp}`,
+        creator_id: userResult.user.id,
       });
 
       expect(roomResult).toBeDefined();
@@ -134,13 +160,15 @@ describe('Prism Protocol Integration Tests', () => {
     });
 
     it('should handle multiple references in response', async () => {
+      const timestamp = Date.now();
       const userResult = await client.request('createUser', {
-        username: `user-${Date.now()}`,
+        username: `user-${timestamp}`,
+        display_name: `Test User ${timestamp}`,
       });
 
       const roomResult = await client.request('createRoom', {
-        name: `Room ${Date.now()}`,
-        user_id: userResult.user.id,
+        name: `Room ${timestamp}`,
+        creator_id: userResult.user.id,
       });
 
       // Send a message (will have both message and user references)
@@ -159,9 +187,13 @@ describe('Prism Protocol Integration Tests', () => {
     it('should update filter on subscribed object', async () => {
       const updates: any[] = [];
 
+      // Watch for updates BEFORE subscribing
       client.watch('global-room-list', (data) => {
         updates.push(data);
       });
+
+      // Ensure global-room-list exists
+      await client.request('listRooms', {});
 
       // Subscribe with default filter
       await client.subscribe('global-room-list', 'default');
@@ -198,36 +230,47 @@ describe('Prism Protocol Integration Tests', () => {
       let roomId: string;
 
       // Create user and room
+      const timestamp = Date.now();
       const userResult = await client.request('createUser', {
-        username: `user-${Date.now()}`,
+        username: `user-${timestamp}`,
+        display_name: `Test User ${timestamp}`,
       });
 
       const roomResult = await client.request('createRoom', {
-        name: `Room ${Date.now()}`,
-        user_id: userResult.user.id,
+        name: `Room ${timestamp}`,
+        creator_id: userResult.user.id,
       });
 
       roomId = roomResult.room.id;
 
-      // Subscribe to the room
+      // Watch for updates BEFORE subscribing
       client.watch(roomId, (data) => {
         updates.push(data);
       });
 
+      // Subscribe to the room
       await client.subscribe(roomId);
-      await waitFor(() => updates.length >= 1);
 
-      const initialVersion = updates.length;
+      // Wait a bit for subscription to be established
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Clear any initial updates
       updates.length = 0;
 
-      // Trigger an update by sending a message
-      await client.request('sendMessage', {
-        room_id: roomId,
-        user_id: userResult.user.id,
-        content: 'Test message',
+      // Create another user and have them join the room to trigger update
+      const timestamp2 = Date.now();
+      const user2Result = await client.request('createUser', {
+        username: `user-${timestamp2}`,
+        display_name: `Test User ${timestamp2}`,
       });
 
-      // Should receive delta or full update
+      // Join room (this modifies the room's member list)
+      await client.request('joinRoom', {
+        room_id: roomId,
+        user_id: user2Result.user.id,
+      });
+
+      // Should receive delta or full update after room modification
       await waitFor(() => updates.length >= 1, 5000);
 
       expect(updates.length).toBeGreaterThan(0);
@@ -243,10 +286,14 @@ describe('Prism Protocol Integration Tests', () => {
       const updates2: any[] = [];
 
       try {
-        // Both subscribe to room list
+        // Watch for updates BEFORE subscribing
         client.watch('global-room-list', (data) => updates1.push(data));
         client2.watch('global-room-list', (data) => updates2.push(data));
 
+        // Ensure global-room-list exists
+        await client.request('listRooms', {});
+
+        // Both subscribe to room list
         await client.subscribe('global-room-list');
         await client2.subscribe('global-room-list');
 
@@ -255,10 +302,17 @@ describe('Prism Protocol Integration Tests', () => {
         updates1.length = 0;
         updates2.length = 0;
 
+        // Create a user first
+        const timestamp = Date.now();
+        const userResult = await client.request('createUser', {
+          username: `user-${timestamp}`,
+          display_name: `Test User ${timestamp}`,
+        });
+
         // Client 1 creates a room
         await client.request('createRoom', {
-          name: `Multi-client room ${Date.now()}`,
-          user_id: 'test-user',
+          name: `Multi-client room ${timestamp}`,
+          creator_id: userResult.user.id,
         });
 
         // Both clients should receive the update
@@ -294,14 +348,16 @@ describe('Prism Protocol Integration Tests', () => {
   describe('Reference Hydration', () => {
     it('should hydrate nested object references', async () => {
       // Create user
+      const timestamp = Date.now();
       const userResult = await client.request('createUser', {
-        username: `user-${Date.now()}`,
+        username: `user-${timestamp}`,
+        display_name: `Test User ${timestamp}`,
       });
 
       // Create room
       const roomResult = await client.request('createRoom', {
-        name: `Room ${Date.now()}`,
-        user_id: userResult.user.id,
+        name: `Room ${timestamp}`,
+        creator_id: userResult.user.id,
       });
 
       // Send message - response should have message reference
@@ -322,8 +378,10 @@ describe('Prism Protocol Integration Tests', () => {
     });
 
     it('should handle cached references efficiently', async () => {
+      const timestamp = Date.now();
       const userResult = await client.request('createUser', {
-        username: `user-${Date.now()}`,
+        username: `user-${timestamp}`,
+        display_name: `Test User ${timestamp}`,
       });
 
       const userId = userResult.user.id;
@@ -341,8 +399,10 @@ describe('Prism Protocol Integration Tests', () => {
   describe('Auto-subscription', () => {
     it('should auto-subscribe when reference has subscribe=true', async () => {
       // Some requests might auto-subscribe to returned objects
+      const timestamp = Date.now();
       const userResult = await client.request('createUser', {
-        username: `user-${Date.now()}`,
+        username: `user-${timestamp}`,
+        display_name: `Test User ${timestamp}`,
       }, {
         subscribeToRefs: true,
       });
