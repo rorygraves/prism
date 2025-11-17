@@ -191,3 +191,40 @@ export function usePrismConnection(): {
 
   return { connected };
 }
+
+/**
+ * Update filter for an existing subscription.
+ * Use this to dynamically change the filter on a subscribed object.
+ */
+export function usePrismFilter(objectId: Ref<string> | string): {
+  updating: Ref<boolean>;
+  error: Ref<Error | null>;
+  updateFilter: (
+    filterType: string,
+    filterParams?: Record<string, any>
+  ) => Promise<void>;
+} {
+  const client = usePrismClient();
+  const updating = ref(false);
+  const error = ref<Error | null>(null);
+
+  const updateFilter = async (
+    filterType: string,
+    filterParams?: Record<string, any>
+  ): Promise<void> => {
+    const id = typeof objectId === 'string' ? objectId : objectId.value;
+    updating.value = true;
+    error.value = null;
+
+    try {
+      await client.updateFilter(id, filterType, filterParams);
+    } catch (err) {
+      error.value = err as Error;
+      throw err;
+    } finally {
+      updating.value = false;
+    }
+  };
+
+  return { updating, error, updateFilter };
+}

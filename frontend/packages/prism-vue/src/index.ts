@@ -9,5 +9,6 @@ export {
   usePrismRequest,
   usePrismObjects,
   usePrismConnection,
+  usePrismFilter,
   PrismClientKey,
 } from './composables.js';

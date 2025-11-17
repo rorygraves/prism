@@ -17,6 +17,7 @@ import type {
   SubscribeMessage,
   Subscription,
   UnsubscribeMessage,
+  UpdateFilterMessage,
 } from './types.js';
 
 /**
@@ -168,6 +169,35 @@ export class PrismClient {
 
     await this.send(message);
     this.subscriptions.delete(objectId);
+  }
+
+  /**
+   * Update the filter for an existing subscription.
+   * The server will re-send the object with the new filter applied.
+   */
+  async updateFilter(
+    objectId: string,
+    filterType: string,
+    filterParams?: Record<string, any>
+  ): Promise<void> {
+    // Check if subscribed
+    const subscription = this.subscriptions.get(objectId);
+    if (!subscription) {
+      throw new Error(`Not subscribed to object ${objectId}`);
+    }
+
+    const message: UpdateFilterMessage = {
+      type: 'updateFilter',
+      object_id: objectId,
+      filter_type: filterType,
+      filter_params: filterParams,
+    };
+
+    await this.send(message);
+
+    // Update local subscription info
+    subscription.filterType = filterType;
+    subscription.filterParams = filterParams;
   }
 
   /**
