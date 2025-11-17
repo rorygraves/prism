@@ -131,7 +131,7 @@ class PrismObjectManager:
 
         # Apply filter
         filter_type = msg.filter_type or "default"
-        filtered_obj = await self._apply_filter_cached(current_obj, filter_type)
+        filtered_obj = await self._apply_filter_cached(current_obj, filter_type, msg.filter_params)
 
         # Smart sync based on client state
         await self._smart_sync(client_id, msg.object_id, filtered_obj)
@@ -211,8 +211,10 @@ class PrismObjectManager:
         # Re-sync with new filter
         current_obj = await self.storage.get_current(msg.object_id)
         if current_obj:
-            filtered_obj = await self._apply_filter_cached(current_obj, msg.filter_type)
-            await self._smart_sync(client_id, msg.object_id, filtered_obj)
+            filtered_obj = await self._apply_filter_cached(current_obj, msg.filter_type, msg.filter_params)
+            # Always send full object when filter changes, even if version matches
+            await self._send_full_object(client_id, filtered_obj)
+            client.update_version(msg.object_id, filtered_obj.version)
 
     async def notify_object_updated(self, obj: PrismObject) -> None:
         """Notify all subscribed clients when an object is updated.
@@ -245,7 +247,7 @@ class PrismObjectManager:
             subscription: Client's subscription
         """
         # Apply filter
-        filtered_obj = await self._apply_filter_cached(obj, subscription.filter_type)
+        filtered_obj = await self._apply_filter_cached(obj, subscription.filter_type, subscription.filter_params)
 
         # Smart sync
         await self._smart_sync(client_id, obj.id, filtered_obj)
@@ -357,13 +359,14 @@ class PrismObjectManager:
         return obj
 
     async def _apply_filter_cached(
-        self, obj: PrismObject, filter_type: str
+        self, obj: PrismObject, filter_type: str, filter_params: dict[str, Any] | None = None
     ) -> PrismObject:
         """Apply filter with caching.
 
         Args:
             obj: Object to filter
             filter_type: Filter name
+            filter_params: Optional filter parameters
 
         Returns:
             Filtered object
@@ -371,12 +374,19 @@ class PrismObjectManager:
         if filter_type == "default":
             return obj
 
+        # Include params in cache key if present
         cache_key = f"{obj.id}:{obj.version}:{filter_type}"
+        if filter_params:
+            # Simple hash of params for cache key
+            import json
+            params_str = json.dumps(filter_params, sort_keys=True)
+            cache_key = f"{cache_key}:{params_str}"
+
         cached = self.filter_cache.get(cache_key)
         if cached:
             return cached
 
-        filtered = self.filters.apply(obj, filter_type)
+        filtered = self.filters.apply(obj, filter_type, filter_params)
         self.filter_cache.put(cache_key, filtered)
         return filtered
 
