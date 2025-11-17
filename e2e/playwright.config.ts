@@ -15,6 +15,17 @@ export default defineConfig({
     headless: true,
     // Disable video to save resources in headless mode
     video: 'retain-on-failure',
+    // Browser launch options for cloud/container environments
+    launchOptions: {
+      args: [
+        '--disable-gpu',
+        '--disable-dev-shm-usage',
+        '--disable-setuid-sandbox',
+        '--no-sandbox',
+        '--disable-accelerated-2d-canvas',
+        '--disable-software-rasterizer',
+      ],
+    },
   },
 
   projects: [

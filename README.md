@@ -16,6 +16,8 @@ prism/
 ## Quick Start
 
 > **📖 For AI Assistants:** See [CLAUDE.md](CLAUDE.md) for a comprehensive quick reference guide specifically designed for autonomous development and testing.
+>
+> **☁️ For Cloud Environments:** See [CLOUD_SETUP.md](CLOUD_SETUP.md) for setup instructions specific to containerized/cloud environments (Claude Code on the Web, Docker, etc.)
 
 ### Automated Setup (Recommended)
 

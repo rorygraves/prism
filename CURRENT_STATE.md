@@ -393,3 +393,155 @@ The fixes enable:
 - ✅ Fixed sync message to be complete
 - ✅ All changes type-checked and linted
 
+---
+
+## Session 3: Cloud Environment Setup - 2025-11-17
+
+**Investigator**: Claude Code (Autonomous)
+**Focus**: Set up e2e testing in cloud environment and create automated setup
+
+### Environment Configuration
+
+#### PostgreSQL Setup for Cloud
+
+**Challenge**: Cloud containerized environment (Claude Code on the Web) has PostgreSQL 16 pre-installed but not configured for the project.
+
+**Solutions Applied**:
+1. **Start PostgreSQL**: `pg_ctlcluster 16 main start`
+2. **Disable SSL**: Edited `/etc/postgresql/16/main/postgresql.conf` to set `ssl = off` (avoids certificate permission errors in container)
+3. **Configure Trust Auth**: Modified `/etc/postgresql/16/main/pg_hba.conf` to use `trust` authentication for local connections
+4. **Create Database**: Created `prism_chat` database with `psql -U postgres`
+
+**Impact**: PostgreSQL now works reliably in cloud environment without permission issues.
+
+#### Playwright Configuration for Cloud
+
+**Challenge**: Chromium crashes in headless mode within containerized cloud environment.
+
+**Error**: `page.goto: Page crashed`
+
+**Root Cause**: Chromium in containerized environments requires specific launch arguments to avoid crashes related to GPU rendering, sandboxing, and process isolation.
+
+**Solutions Attempted**:
+1. ✅ Added cloud-friendly launch args to `e2e/playwright.config.ts`:
+   ```typescript
+   launchOptions: {
+     args: [
+       '--disable-gpu',
+       '--disable-dev-shm-usage',
+       '--disable-setuid-sandbox',
+       '--no-sandbox',
+       '--disable-accelerated-2d-canvas',
+       '--disable-software-rasterizer',
+     ],
+   }
+   ```
+2. ✅ Installed Playwright system dependencies: `npx playwright install-deps chromium`
+3. ❌ Tested `--single-process` flag - caused crashes when creating multiple browser contexts
+4. ⚠️ **Status**: Browser launches successfully but still experiencing intermittent crashes
+
+**Current Observation**:
+- One test ("should handle connection status") passed successfully showing the browser CAN work
+- Page loads successfully and Vue app initializes (visible in console logs)
+- Creating multiple browser contexts/pages in same test causes crashes
+- May be resource limitation or process isolation issue specific to cloud environment
+
+#### Automated Setup Hook
+
+**Created**: `.claude/hooks/startSession.sh`
+
+**Purpose**: Automatically configure environment when starting a new Claude Code session.
+
+**Features**:
+- Starts PostgreSQL if not running
+- Configures trust authentication
+- Creates prism_chat database
+- Installs Python/Poetry dependencies
+- Installs Node/pnpm dependencies
+- Builds frontend packages
+- Installs Playwright browsers
+- Displays helpful command reference
+
+**Usage**: Runs automatically on session start when using Claude Code on the Web.
+
+### Documentation Created
+
+#### CLOUD_SETUP.md
+
+Comprehensive guide for cloud/container environments including:
+- Step-by-step manual setup instructions
+- PostgreSQL configuration details
+- Known issues with E2E tests in cloud
+- Troubleshooting guide
+- Environment differences (cloud vs local)
+- Workarounds and recommendations
+
+#### README.md Updates
+
+Added reference to CLOUD_SETUP.md for users deploying in containerized environments.
+
+### Files Changed (Session 3)
+
+#### Configuration
+- `e2e/playwright.config.ts` - Added cloud-friendly Chromium launch arguments
+- `/etc/postgresql/16/main/postgresql.conf` - Disabled SSL for cloud environment
+- `/etc/postgresql/16/main/pg_hba.conf` - Configured trust authentication
+
+#### Documentation
+- `CLOUD_SETUP.md` - NEW: Comprehensive cloud environment setup guide
+- `README.md` - Added cloud setup reference
+- `.claude/hooks/startSession.sh` - NEW: Automated environment setup hook
+
+### Testing Results (Cloud Environment)
+
+#### Before Cloud Setup
+- ❌ PostgreSQL not configured
+- ❌ No database created
+- ❌ Dependencies not installed
+- ❌ Playwright browsers not installed
+- ❌ E2E tests couldn't run
+
+#### After Cloud Setup
+- ✅ PostgreSQL running and configured
+- ✅ Database created and accessible
+- ✅ All dependencies installed
+- ✅ Playwright browsers installed
+- ✅ Backend starts successfully (port 8000)
+- ✅ Frontend starts successfully (port 3000)
+- ✅ Application accessible via HTTP
+- ✅ WebSocket connections work
+- ⚠️ E2E tests run but have intermittent browser crashes
+
+### Known Issues
+
+#### 1. ⚠️ E2E Tests - Browser Crashes (Cloud Only)
+
+**Status**: Under investigation
+
+**Symptoms**:
+- Intermittent "Page crashed" errors in Playwright tests
+- Tests that create multiple browser contexts fail
+- One test passed showing browser CAN work
+
+**Impact**: E2E tests unreliable in cloud environment but application itself works fine
+
+**Workarounds**:
+1. Run E2E tests on local machine (works reliably)
+2. Use manual testing in cloud environment
+3. Consider Firefox instead of Chromium for cloud testing
+
+### Next Steps
+
+1. **✅ COMPLETED**: Document cloud setup process → CLOUD_SETUP.md created
+2. **✅ COMPLETED**: Create automated setup hook → `.claude/hooks/startSession.sh` created
+3. **✅ COMPLETED**: Update project documentation → README.md updated
+4. **Recommended**: Investigate Firefox for E2E testing in cloud
+5. **Recommended**: Test with different Chromium versions or full Chrome
+6. **Recommended**: Add retry logic to E2E tests for flaky cloud scenarios
+
+### Summary
+
+Successfully configured the project to run in cloud/containerized environments with automated setup. The application backend and frontend work correctly, and we've created comprehensive documentation for future sessions. E2E testing in cloud remains a known challenge but has documented workarounds.
+
+**Key Achievement**: New sessions in Claude Code on the Web will automatically have a fully configured environment ready for testing and development.
+
