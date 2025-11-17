@@ -180,6 +180,11 @@ class RequestRouter:
 
         references: list[ObjectReference] = []
 
+        # Check if this is already an ObjectReference instance
+        if isinstance(data, ObjectReference):
+            references.append(data)
+            return references
+
         if isinstance(data, dict):
             # Check if this dict is an ObjectReference
             if self._is_object_reference(data):
