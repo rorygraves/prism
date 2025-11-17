@@ -1,0 +1,35 @@
+# sbt
+target/
+project/target/
+project/project/
+.bsp/
+
+# Scala
+*.class
+*.log
+*.jar
+*.war
+*.ear
+
+# IDE
+.idea/
+.vscode/
+*.iml
+.metals/
+.bloop/
+
+# Logs
+logs/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Assembly output
+assembly/
+
+# Coverage reports
+coverage/
+scoverage-data/
+scoverage-report/

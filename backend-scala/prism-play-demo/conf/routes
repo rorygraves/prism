@@ -1,0 +1,12 @@
+# Routes
+# This file defines all application routes (Higher priority routes first)
+# ~~~~
+
+# WebSocket endpoint
+GET     /ws                         controllers.ChatController.ws
+
+# Health check
+GET     /health                     controllers.ChatController.health
+
+# Serve index page
+GET     /                           controllers.ChatController.index
