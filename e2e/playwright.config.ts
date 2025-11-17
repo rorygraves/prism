@@ -15,26 +15,31 @@ export default defineConfig({
     headless: true,
     // Disable video to save resources in headless mode
     video: 'retain-on-failure',
-    // Browser launch options for cloud/container environments
-    launchOptions: {
-      args: [
-        '--disable-gpu',
-        '--disable-dev-shm-usage',
-        '--disable-setuid-sandbox',
-        '--no-sandbox',
-        '--disable-accelerated-2d-canvas',
-        '--disable-software-rasterizer',
-      ],
-    },
   },
 
   projects: [
     {
+      name: 'firefox',
+      use: {
+        ...devices['Desktop Firefox'],
+        // Firefox is more stable in containerized/cloud environments
+      },
+    },
+    {
       name: 'chromium',
       use: {
         ...devices['Desktop Chrome'],
-        // Cloud/CI friendly: use Chromium headless shell
-        channel: undefined,
+        // Cloud-friendly Chromium launch args for containerized environments
+        launchOptions: {
+          args: [
+            '--disable-gpu',
+            '--disable-dev-shm-usage',
+            '--disable-setuid-sandbox',
+            '--no-sandbox',
+            '--disable-accelerated-2d-canvas',
+            '--disable-software-rasterizer',
+          ],
+        },
       },
     },
   ],
@@ -48,7 +53,7 @@ export default defineConfig({
       timeout: 120000,
     },
     {
-      command: 'cd ../frontend/chat-demo && npm run dev',
+      command: 'cd ../frontend/chat-demo && pnpm run dev',
       url: 'http://localhost:3000',
       reuseExistingServer: !process.env.CI,
       timeout: 120000,

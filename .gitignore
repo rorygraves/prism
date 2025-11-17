@@ -1,18 +1,3 @@
-e2e/node_modules/
-
-# Frontend build artifacts
-frontend/**/node_modules/
-frontend/**/.vite/
-frontend/**/dist/
-
-# E2E test artifacts
-e2e/playwright-report/
-e2e/test-results/
-e2e/package-lock.json
-
-# Vite cache
-.vite/
-
 # Python
 __pycache__/
 *.py[cod]
@@ -45,6 +30,28 @@ venv/
 ENV/
 env/
 
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Frontend build artifacts
+frontend/**/node_modules/
+frontend/**/.vite/
+frontend/**/dist/
+frontend/pnpm-lock.yaml
+
+# E2E test artifacts
+e2e/node_modules/
+e2e/playwright-report/
+e2e/test-results/
+e2e/package-lock.json
+
+# Vite cache
+.vite/
+
 # PyCharm
 .idea/
 
@@ -54,3 +61,7 @@ env/
 # Logs
 logs/
 *.log
+
+# OS
+.DS_Store
+Thumbs.db

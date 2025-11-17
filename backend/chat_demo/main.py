@@ -13,7 +13,7 @@ from prism.filters.common import create_default_registry
 from prism.server.object_manager import PrismObjectManager
 from prism.server.request_router import RequestRouter
 from prism.server.websocket import WebSocketConnection
-from prism.storage.postgres import PostgresStorageAdapter
+from prism.storage.memory import MemoryStorageAdapter
 
 # Configure logging
 logging.basicConfig(
@@ -23,7 +23,7 @@ logging.basicConfig(
 )
 
 # Global state
-storage: PostgresStorageAdapter | None = None
+storage: MemoryStorageAdapter | None = None
 object_manager: PrismObjectManager | None = None
 request_router: RequestRouter | None = None
 
@@ -33,9 +33,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Application lifespan manager."""
     global storage, object_manager, request_router
 
-    # Initialize storage
-    database_url = "postgresql+asyncpg://postgres:postgres@localhost/prism_chat"
-    storage = await PostgresStorageAdapter.create(database_url)
+    # Initialize storage (using in-memory storage for easy setup)
+    storage = await MemoryStorageAdapter.create()
 
     # Initialize filter registry
     filters = create_default_registry()
@@ -53,10 +52,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     yield
 
-    # Cleanup
-    if storage:
-        await storage.close()
-
+    # Cleanup (memory storage doesn't need cleanup)
     print("Chat demo server stopped")
 
 
