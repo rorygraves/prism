@@ -312,6 +312,10 @@ export function createMockWebSocket(): MockWebSocket {
 # Run all E2E tests (auto-starts/stops servers)
 ./scripts/run-e2e.sh
 
+# Default: Headless mode (no display required, cloud/CI friendly)
+./scripts/run-e2e.sh
+npm test
+
 # Keep servers running after tests
 ./scripts/run-e2e.sh --keep-alive
 
@@ -322,7 +326,7 @@ export function createMockWebSocket(): MockWebSocket {
 cd e2e
 npm test -- tests/multi-user-chat.spec.ts
 
-# Run in headed mode (see browser)
+# Run in headed mode (see browser - for local debugging)
 cd e2e
 npm run test:headed
 
@@ -330,6 +334,13 @@ npm run test:headed
 cd e2e
 npm run test:debug
 ```
+
+**Note:** Tests run **headless by default** (configured in `playwright.config.ts`). This means:
+- ✅ No display/X server required
+- ✅ Perfect for cloud-based CI/CD
+- ✅ Works in Docker containers
+- ✅ Ideal for automated agent testing
+- Use `--headed` or `test:headed` only when you need to visually debug
 
 ### Test Structure
 

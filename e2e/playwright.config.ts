@@ -11,12 +11,20 @@ export default defineConfig({
     baseURL: 'http://localhost:3000',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
+    // Explicitly run headless for cloud/CI environments
+    headless: true,
+    // Disable video to save resources in headless mode
+    video: 'retain-on-failure',
   },
 
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: {
+        ...devices['Desktop Chrome'],
+        // Cloud/CI friendly: use Chromium headless shell
+        channel: undefined,
+      },
     },
   ],
 

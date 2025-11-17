@@ -47,8 +47,17 @@ cd frontend/packages/prism-vue && pnpm run build
 ```bash
 ./scripts/test-all.sh        # Run ALL tests (backend + frontend + E2E)
 ./scripts/test-backend.sh    # Unit tests only
-./scripts/run-e2e.sh         # E2E tests with Puppeteer MCP support
+./scripts/run-e2e.sh         # E2E tests (headless, cloud/CI friendly)
+
+# For visual debugging (shows browser):
+cd e2e && npm run test:headed    # Run with visible browser
+./scripts/run-e2e.sh --ui        # Open Playwright UI mode
 ```
+
+**Note:** E2E tests run **headless by default** (no display required) making them perfect for:
+- Cloud-based CI/CD pipelines
+- Headless development environments
+- Automated agent testing
 
 **Debugging:**
 ```bash
@@ -56,6 +65,10 @@ cd frontend/packages/prism-vue && pnpm run build
 ./scripts/logs.sh --frontend # Frontend logs only
 cat logs/backend-latest.log  # Read full backend log
 cat logs/frontend-latest.log # Read full frontend log
+
+# Visual debugging with browser:
+cd e2e && npm run test:headed    # See what the browser is doing
+./scripts/run-e2e.sh --ui        # Interactive test debugging
 ```
 
 **Cleanup:**
