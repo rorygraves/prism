@@ -2,6 +2,97 @@
 
 This document describes the development tooling and workflows for the Prism Chat Demo project, specifically designed to enable autonomous development, testing, and experimentation.
 
+---
+
+## 🤖 AI Assistant Quick Reference
+
+### First Time Setup
+```bash
+./scripts/setup.sh    # Installs ALL dependencies and builds everything
+```
+**What it does:**
+- Checks for Node.js >= 18, Python 3, PostgreSQL
+- Auto-installs pnpm and Poetry if missing
+- Installs frontend dependencies (pnpm)
+- Builds @prism/client and @prism/vue packages
+- Installs backend dependencies (Poetry)
+- Creates PostgreSQL database
+- Installs Playwright browsers for E2E tests
+- Verifies entire setup
+
+### Common Development Workflows
+
+**Starting Work:**
+```bash
+./scripts/start-all.sh       # Start backend (port 8000) + frontend (port 3000)
+./scripts/logs.sh            # View logs in real-time
+./scripts/status.sh          # Check if servers are running
+```
+
+**Making Changes:**
+```bash
+# After editing backend Python code:
+# - Auto-reloads (uvicorn --reload)
+
+# After editing frontend TypeScript/Vue code:
+# - Auto-reloads (Vite HMR)
+
+# After editing @prism/client or @prism/vue packages:
+cd frontend/packages/prism-client && pnpm run build
+cd frontend/packages/prism-vue && pnpm run build
+./scripts/restart-all.sh     # Restart servers to pick up changes
+```
+
+**Testing:**
+```bash
+./scripts/test-all.sh        # Run ALL tests (backend + frontend + E2E)
+./scripts/test-backend.sh    # Unit tests only
+./scripts/run-e2e.sh         # E2E tests with Puppeteer MCP support
+```
+
+**Debugging:**
+```bash
+./scripts/logs.sh --backend  # Backend logs only
+./scripts/logs.sh --frontend # Frontend logs only
+cat logs/backend-latest.log  # Read full backend log
+cat logs/frontend-latest.log # Read full frontend log
+```
+
+**Cleanup:**
+```bash
+./scripts/stop-all.sh        # Stop all servers
+./scripts/clean.sh           # Remove all build artifacts and logs
+```
+
+### Key Files to Know
+
+**Backend (Python/FastAPI):**
+- `backend/prism/server/object_manager.py` - Core subscription and sync logic
+- `backend/prism/core/protocol.py` - Message types
+- `backend/chat_demo/handler.py` - Business logic for chat
+- `backend/chat_demo/main.py` - WebSocket server
+
+**Frontend (TypeScript/Vue):**
+- `frontend/packages/prism-client/src/client.ts` - WebSocket client
+- `frontend/packages/prism-vue/src/composables.ts` - Vue composables
+- `frontend/chat-demo/src/views/HomeView.vue` - Chat UI
+
+**Tests:**
+- `backend/tests/` - Python unit tests (pytest)
+- `e2e/tests/` - End-to-end tests (Playwright)
+
+### System Requirements
+
+The setup script checks and installs:
+- Node.js >= 18
+- Python >= 3.11
+- PostgreSQL >= 14
+- pnpm (auto-installs)
+- Poetry (auto-installs)
+- Playwright browsers (auto-installs)
+
+---
+
 ## Quick Start
 
 ```bash

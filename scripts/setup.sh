@@ -186,5 +186,6 @@ echo "  2. Run tests:        ./scripts/test-all.sh"
 echo "  3. View logs:        ./scripts/logs.sh"
 echo "  4. Check status:     ./scripts/status.sh"
 echo ""
-log_info "For development workflow, see CLAUDE.md"
+log_info "📖 For detailed development workflows, see CLAUDE.md"
+log_info "   (Comprehensive guide for autonomous development and testing)"
 print_separator

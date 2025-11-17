@@ -15,10 +15,20 @@ prism/
 
 ## Quick Start
 
-**Automated Setup (Recommended)**
+> **📖 For AI Assistants:** See [CLAUDE.md](CLAUDE.md) for a comprehensive quick reference guide specifically designed for autonomous development and testing.
+
+### Automated Setup (Recommended)
+
+The `setup.sh` script handles **complete environment setup** including:
+- Checking system prerequisites (Node.js, Python, PostgreSQL)
+- Auto-installing pnpm and Poetry
+- Installing all dependencies (frontend + backend)
+- Building packages
+- Creating database
+- Installing Playwright browsers
 
 ```bash
-# One-time setup (installs dependencies, builds packages, creates database)
+# One-time setup - installs EVERYTHING needed for development
 ./scripts/setup.sh
 
 # Start both backend and frontend servers
@@ -37,7 +47,7 @@ prism/
 ./scripts/stop-all.sh
 ```
 
-**See [CLAUDE.md](CLAUDE.md) for detailed development workflows and MCP browser integration.**
+**See [CLAUDE.md](CLAUDE.md) for detailed development workflows, testing strategies, and MCP browser integration.**
 
 ### Manual Setup
 
