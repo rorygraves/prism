@@ -15,7 +15,33 @@ prism/
 
 ## Quick Start
 
-### Backend (Python)
+**Automated Setup (Recommended)**
+
+```bash
+# One-time setup (installs dependencies, builds packages, creates database)
+./scripts/setup.sh
+
+# Start both backend and frontend servers
+./scripts/start-all.sh
+
+# Run all tests
+./scripts/test-all.sh
+
+# Check server status
+./scripts/status.sh
+
+# View logs
+./scripts/logs.sh
+
+# Stop servers
+./scripts/stop-all.sh
+```
+
+**See [CLAUDE.md](CLAUDE.md) for detailed development workflows and MCP browser integration.**
+
+### Manual Setup
+
+**Backend (Python)**
 
 ```bash
 cd backend
@@ -23,15 +49,17 @@ poetry install
 poetry run uvicorn chat_demo.main:app --reload
 ```
 
-### Frontend (TypeScript/Vue)
+**Frontend (TypeScript/Vue)**
 
 ```bash
-cd frontend/chat-demo
-npm install
-npm run dev
+cd frontend
+pnpm install
+cd packages/prism-client && pnpm run build
+cd ../prism-vue && pnpm run build
+cd ../../chat-demo && pnpm run dev
 ```
 
-### End-to-End Tests
+**End-to-End Tests**
 
 ```bash
 cd e2e

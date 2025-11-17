@@ -85,7 +85,7 @@ export function usePrismRequest<T = any>(options?: RequestOptions): {
   data: Ref<T | null>;
   loading: Ref<boolean>;
   error: Ref<Error | null>;
-  execute: (requestType: string, payload: Record<string, any>) => Promise<void>;
+  execute: (requestType: string, payload: Record<string, any>) => Promise<T | null>;
 } {
   const client = usePrismClient();
   const data = ref<T | null>(null) as Ref<T | null>;
@@ -95,15 +95,17 @@ export function usePrismRequest<T = any>(options?: RequestOptions): {
   const execute = async (
     requestType: string,
     payload: Record<string, any>
-  ): Promise<void> => {
+  ): Promise<T | null> => {
     loading.value = true;
     error.value = null;
 
     try {
       const result = await client.request<T>(requestType, payload, options);
       data.value = result;
+      return result;
     } catch (err) {
       error.value = err as Error;
+      return null;
     } finally {
       loading.value = false;
     }

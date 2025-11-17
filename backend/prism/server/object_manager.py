@@ -115,6 +115,8 @@ class PrismObjectManager:
             client_id: Client identifier
             msg: Subscribe message
         """
+        # TODO: Add logging when logger is available
+        # print(f"[SUBSCRIBE] Client {client_id} subscribing to {msg.object_id} with filter {msg.filter_type}")
         client = self.get_client_state(client_id)
 
         # Get current object

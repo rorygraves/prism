@@ -130,6 +130,8 @@ export class PrismClient {
     filterType: string = 'default',
     temporary: boolean = false
   ): Promise<void> {
+    console.log(`[PrismClient] Subscribing to ${objectId} with filter ${filterType}, temporary: ${temporary}`);
+
     const message: SubscribeMessage = {
       type: 'subscribe',
       object_id: objectId,
@@ -137,7 +139,13 @@ export class PrismClient {
       temporary,
     };
 
-    await this.send(message);
+    try {
+      await this.send(message);
+      console.log(`[PrismClient] Subscribe message sent for ${objectId}`);
+    } catch (error) {
+      console.error(`[PrismClient] Failed to send subscribe message for ${objectId}:`, error);
+      throw error;
+    }
 
     if (!temporary) {
       this.subscriptions.set(objectId, {
@@ -184,7 +192,13 @@ export class PrismClient {
       this.pendingRequests.set(requestId, { resolve, reject });
     });
 
-    await this.send(message);
+    try {
+      await this.send(message);
+    } catch (error) {
+      // Clean up pending request if send fails
+      this.pendingRequests.delete(requestId);
+      throw error;
+    }
 
     return promise;
   }

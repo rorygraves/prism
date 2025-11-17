@@ -10,7 +10,7 @@ import '@mdi/font/css/materialdesignicons.css';
 import 'vuetify/styles';
 
 import { PrismClient } from '@prism/client';
-import { providePrismClient } from '@prism/vue';
+import { PrismClientKey } from '@prism/vue';
 
 import App from './App.vue';
 import router from './router';
@@ -47,7 +47,7 @@ app.use(router);
 app.use(vuetify);
 
 // Provide Prism client to all components
-providePrismClient(prismClient);
+app.provide(PrismClientKey, prismClient);
 
 // Connect to server
 prismClient

@@ -1,5 +1,6 @@
 """Main FastAPI application for chat demo."""
 
+import logging
 import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -13,6 +14,13 @@ from prism.server.object_manager import PrismObjectManager
 from prism.server.request_router import RequestRouter
 from prism.server.websocket import WebSocketConnection
 from prism.storage.postgres import PostgresStorageAdapter
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
 
 # Global state
 storage: PostgresStorageAdapter | None = None
@@ -89,18 +97,26 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
     Each connection gets a unique client ID and maintains its own state
     through the PrismObjectManager.
     """
+    logger = logging.getLogger(__name__)
+
     if object_manager is None or request_router is None:
+        logger.error("[WEBSOCKET] Server not initialized, closing connection")
         await websocket.close(code=1011, reason="Server not initialized")
         return
 
     # Generate unique client ID
     client_id = f"client-{uuid.uuid4().hex[:12]}"
+    logger.info(f"[WEBSOCKET] New connection established, client_id: {client_id}")
 
     # Create connection handler
     connection = WebSocketConnection(websocket, client_id, object_manager, request_router)
 
     # Handle connection
-    await connection.handle()
+    try:
+        await connection.handle()
+        logger.info(f"[WEBSOCKET] Connection closed normally for client: {client_id}")
+    except Exception as e:
+        logger.error(f"[WEBSOCKET] Connection error for client {client_id}: {e}", exc_info=True)
 
 
 if __name__ == "__main__":
