@@ -1,14 +1,15 @@
 """Tests for PrismObjectManager."""
 
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock
+
 from prism.core.protocol import (
+    DeltaMessage,
+    ErrorMessage,
+    FullObjectMessage,
     SubscribeMessage,
     UnsubscribeMessage,
     UpdateFilterMessage,
-    FullObjectMessage,
-    DeltaMessage,
-    ErrorMessage,
 )
 from prism.core.types import PrismObject
 from prism.filters.common import create_default_registry
@@ -19,8 +20,8 @@ from prism.storage.base import StorageAdapter
 class MockStorage(StorageAdapter):
     """Mock storage for testing."""
 
-    def __init__(self):
-        self.objects = {}
+    def __init__(self) -> None:
+        self.objects: dict[str, list[PrismObject]] = {}
 
     async def save(self, obj: PrismObject) -> None:
         """Save object."""
@@ -48,9 +49,7 @@ class MockStorage(StorageAdapter):
         """Get version range."""
         if object_id in self.objects:
             return [
-                obj
-                for obj in self.objects[object_id]
-                if from_version <= obj.version <= to_version
+                obj for obj in self.objects[object_id] if from_version <= obj.version <= to_version
             ]
         return []
 
@@ -61,7 +60,7 @@ class MockStorage(StorageAdapter):
     async def list_objects(self, limit: int = 100, offset: int = 0) -> list[str]:
         """List object IDs."""
         ids = list(self.objects.keys())
-        return ids[offset:offset + limit]
+        return ids[offset : offset + limit]
 
 
 @pytest.mark.asyncio
@@ -77,6 +76,7 @@ async def test_subscribe_to_object():
 
     # Mock send callback
     messages = []
+
     async def send_callback(msg):
         messages.append(msg)
 
@@ -109,6 +109,7 @@ async def test_unsubscribe_from_object():
     await storage.save(obj)
 
     messages = []
+
     async def send_callback(msg):
         messages.append(msg)
 
@@ -138,13 +139,12 @@ async def test_update_filter_success():
 
     # Create test object with multiple fields
     obj = PrismObject(
-        id="test-1",
-        version=1,
-        data={"name": "Alice", "age": 30, "email": "alice@example.com"}
+        id="test-1", version=1, data={"name": "Alice", "age": 30, "email": "alice@example.com"}
     )
     await storage.save(obj)
 
     messages = []
+
     async def send_callback(msg):
         messages.append(msg)
 
@@ -160,9 +160,7 @@ async def test_update_filter_success():
 
     # Update filter to only show name and email
     update_msg = UpdateFilterMessage(
-        object_id="test-1",
-        filter_type="fields",
-        filter_params={"fields": ["name", "email"]}
+        object_id="test-1", filter_type="fields", filter_params={"fields": ["name", "email"]}
     )
     await manager.handle_update_filter("client-1", update_msg)
 
@@ -190,6 +188,7 @@ async def test_update_filter_not_subscribed():
     manager = PrismObjectManager(storage, filters)
 
     messages = []
+
     async def send_callback(msg):
         messages.append(msg)
 
@@ -197,9 +196,7 @@ async def test_update_filter_not_subscribed():
 
     # Try to update filter without subscription
     update_msg = UpdateFilterMessage(
-        object_id="test-1",
-        filter_type="fields",
-        filter_params={"fields": ["name"]}
+        object_id="test-1", filter_type="fields", filter_params={"fields": ["name"]}
     )
     await manager.handle_update_filter("client-1", update_msg)
 
@@ -220,13 +217,12 @@ async def test_update_filter_with_delta():
 
     # Create test object
     obj_v1 = PrismObject(
-        id="test-1",
-        version=1,
-        data={"name": "Alice", "age": 30, "email": "alice@example.com"}
+        id="test-1", version=1, data={"name": "Alice", "age": 30, "email": "alice@example.com"}
     )
     await storage.save(obj_v1)
 
     messages = []
+
     async def send_callback(msg):
         messages.append(msg)
 
@@ -245,22 +241,18 @@ async def test_update_filter_with_delta():
     obj_v2 = PrismObject(
         id="test-1",
         version=2,
-        data={"name": "Alice Smith", "age": 30, "email": "alice@example.com"}
+        data={"name": "Alice Smith", "age": 30, "email": "alice@example.com"},
     )
     await storage.save(obj_v2)
 
     # Update filter (same filter but triggering re-sync)
-    update_msg = UpdateFilterMessage(
-        object_id="test-1",
-        filter_type="default",
-        filter_params=None
-    )
+    update_msg = UpdateFilterMessage(object_id="test-1", filter_type="default", filter_params=None)
     await manager.handle_update_filter("client-1", update_msg)
 
     # Should send either delta or full object depending on efficiency
     assert len(messages) == 1
     response = messages[0]
-    assert isinstance(response, (FullObjectMessage, DeltaMessage))
+    assert isinstance(response, FullObjectMessage | DeltaMessage)
 
     if isinstance(response, DeltaMessage):
         assert response.id == "test-1"
@@ -279,6 +271,7 @@ async def test_temporary_subscription():
     await storage.save(obj)
 
     messages = []
+
     async def send_callback(msg):
         messages.append(msg)
 
@@ -344,6 +337,7 @@ async def test_subscribe_nonexistent_object():
     manager = PrismObjectManager(storage, filters)
 
     messages = []
+
     async def send_callback(msg):
         messages.append(msg)
 

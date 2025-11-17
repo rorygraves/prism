@@ -41,9 +41,7 @@ class BusinessHandler(ABC):
 class RequestRouter:
     """Routes requests to business logic and enhances responses with smart hydration."""
 
-    def __init__(
-        self, object_manager: PrismObjectManager, business_handler: BusinessHandler
-    ):
+    def __init__(self, object_manager: PrismObjectManager, business_handler: BusinessHandler):
         """Initialize request router.
 
         Args:
@@ -54,9 +52,7 @@ class RequestRouter:
         self.business_handler = business_handler
         self.delta_computer = DeltaComputer()
 
-    async def handle_request(
-        self, client_id: str, request: RequestMessage
-    ) -> ResponseMessage:
+    async def handle_request(self, client_id: str, request: RequestMessage) -> ResponseMessage:
         """Handle a request with smart response hydration.
 
         Args:
@@ -131,9 +127,7 @@ class RequestRouter:
 
             if known_version is None:
                 # Client doesn't have object - send full
-                hydrated.append(
-                    HydratedReference(id=ref.id, version=ref.version, data=obj.data)
-                )
+                hydrated.append(HydratedReference(id=ref.id, version=ref.version, data=obj.data))
 
                 # Auto-subscribe if requested
                 if options.subscribe_to_refs or ref.subscribe:
@@ -155,9 +149,7 @@ class RequestRouter:
 
                 if delta and self.delta_computer.is_delta_efficient(delta, obj):
                     # Send delta
-                    hydrated.append(
-                        HydratedReference(id=ref.id, version=ref.version, delta=delta)
-                    )
+                    hydrated.append(HydratedReference(id=ref.id, version=ref.version, delta=delta))
                 else:
                     # Delta too large - send full
                     hydrated.append(

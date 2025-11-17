@@ -115,8 +115,7 @@ class PostgresStorageAdapter(StorageAdapter):
             models = result.scalars().all()
 
             return [
-                PrismObject(id=model.id, version=model.version, data=model.data)
-                for model in models
+                PrismObject(id=model.id, version=model.version, data=model.data) for model in models
             ]
 
     async def delete(self, object_id: str) -> None:
@@ -129,12 +128,7 @@ class PostgresStorageAdapter(StorageAdapter):
     async def list_objects(self, limit: int = 100, offset: int = 0) -> list[str]:
         """List unique object IDs."""
         async with self.session_maker() as session:
-            stmt = (
-                select(PrismObjectModel.id)
-                .distinct()
-                .limit(limit)
-                .offset(offset)
-            )
+            stmt = select(PrismObjectModel.id).distinct().limit(limit).offset(offset)
             result = await session.execute(stmt)
             return list(result.scalars().all())
 

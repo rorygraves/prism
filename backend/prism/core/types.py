@@ -27,9 +27,7 @@ class Delta(BaseModel):
     object_id: str = Field(..., description="ID of the object this delta applies to")
     from_version: int = Field(..., ge=0, description="Starting version")
     to_version: int = Field(..., ge=0, description="Target version")
-    patches: list[dict[str, Any]] = Field(
-        ..., description="JSON Patch operations (RFC 6902)"
-    )
+    patches: list[dict[str, Any]] = Field(..., description="JSON Patch operations (RFC 6902)")
 
 
 class ObjectReference(BaseModel):
@@ -65,9 +63,7 @@ class RequestOptions(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     hydrate_refs: bool = Field(True, description="Auto-hydrate object references in response")
-    subscribe_to_refs: bool = Field(
-        False, description="Auto-subscribe to referenced objects"
-    )
+    subscribe_to_refs: bool = Field(False, description="Auto-subscribe to referenced objects")
     filter_type: str | None = Field(None, description="Default filter for references")
 
 

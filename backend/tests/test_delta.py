@@ -1,18 +1,15 @@
 """Tests for delta computation."""
 
 import pytest
-from prism.core.types import PrismObject, Delta
+
 from prism.core.delta import DeltaComputer
+from prism.core.types import PrismObject
 
 
 def test_compute_delta_basic():
     """Test basic delta computation."""
-    obj1 = PrismObject(
-        id="test-1", version=1, data={"name": "Alice", "age": 30, "city": "NYC"}
-    )
-    obj2 = PrismObject(
-        id="test-1", version=2, data={"name": "Alice", "age": 31, "city": "SF"}
-    )
+    obj1 = PrismObject(id="test-1", version=1, data={"name": "Alice", "age": 30, "city": "NYC"})
+    obj2 = PrismObject(id="test-1", version=2, data={"name": "Alice", "age": 31, "city": "SF"})
 
     computer = DeltaComputer()
     delta = computer.compute_delta(obj1, obj2)

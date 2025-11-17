@@ -71,11 +71,7 @@ def get_client_message_type(v: Any) -> str:
 
 
 ClientMessage = Annotated[
-    SubscribeMessage
-    | UnsubscribeMessage
-    | SyncMessage
-    | RequestMessage
-    | UpdateFilterMessage,
+    SubscribeMessage | UnsubscribeMessage | SyncMessage | RequestMessage | UpdateFilterMessage,
     Discriminator(get_client_message_type),
 ]
 
