@@ -28,13 +28,16 @@ This repository contains a complete, production-ready implementation of the Pris
 
 #### Quality Assurance
 - ✅ **Type Checking**: Strict mypy configuration, 100% type coverage
-- ✅ **Linting**: Ruff with comprehensive rules
-- ✅ **Testing**: 24 unit tests covering core functionality
-  - Delta computation and application
-  - Filter system
-  - LRU cache
+- ✅ **Linting**: Ruff with comprehensive rules, formatted with black
+- ✅ **Testing**: 47 unit tests covering core functionality
+  - Delta computation and application (8 tests)
+  - Filter system (9 tests)
+  - LRU cache (7 tests)
+  - Object Manager subscriptions and filters (8 tests)
+  - Request Router smart hydration (15 tests)
+- ✅ **Coverage**: 48% overall, 82-100% on core library modules
 - ✅ **Dependencies**: Poetry with locked versions
-- ✅ **Documentation**: Comprehensive README and inline docs
+- ✅ **Documentation**: Comprehensive README, architecture docs, and inline docs
 
 ### ✅ TypeScript/Vue Frontend
 
@@ -48,6 +51,14 @@ This repository contains a complete, production-ready implementation of the Pris
   - Subscription management
   - Smart reference resolution
   - Delta application using fast-json-patch
+  - UpdateFilter support for dynamic filter changes
+- ✅ **Testing**: 19 unit tests with mock WebSocket
+  - Connection lifecycle
+  - Subscribe/unsubscribe
+  - UpdateFilter (4 tests)
+  - Request/response with hydration
+  - Watch callbacks
+  - Error handling
 
 #### Vue Integration (`packages/prism-vue/`)
 - ✅ **Composables** (`src/composables.ts`):
@@ -55,6 +66,7 @@ This repository contains a complete, production-ready implementation of the Pris
   - `usePrismObject()`: Subscribe to single object
   - `usePrismObjects()`: Subscribe to multiple objects
   - `usePrismRequest()`: Make requests with hydration
+  - `usePrismFilter()`: Update filters on subscribed objects
   - `usePrismConnection()`: Connection status
 
 #### Chat Demo App (`chat-demo/`)
@@ -76,11 +88,30 @@ This repository contains a complete, production-ready implementation of the Pris
 - ✅ **Akka HTTP Example**: Server with WebSocket flow
 - ✅ **Storage Interface**: PostgreSQL adapter outline
 
+### ✅ Integration Tests
+
+**Location**: `frontend/integration-tests/`
+
+- ✅ **Test Suite**: 17 comprehensive integration tests
+- ✅ **Real Backend Testing**: TypeScript client vs live Python server (no mocks)
+- ✅ **Coverage**:
+  - Connection and reconnection
+  - Subscribe/unsubscribe lifecycle
+  - Request/response with smart hydration
+  - UpdateFilter dynamic filter changes
+  - Delta updates for subscribed objects
+  - Multiple client synchronization
+  - Error handling scenarios
+  - Reference hydration and caching
+  - Auto-subscription behavior
+- ✅ **CI/CD Ready**: Headless, fast, no browser automation required
+- ✅ **Helper Script**: `./scripts/run-integration-tests.sh`
+
 ### ✅ End-to-End Tests
 
 **Location**: `e2e/`
 
-- ✅ **Playwright Configuration**: Multi-server setup
+- ✅ **Playwright Configuration**: Multi-server setup with browser automation
 - ✅ **Multi-User Tests** (`tests/multi-user-chat.spec.ts`):
   - Two users chatting in same room
   - Three users across different rooms
@@ -93,7 +124,10 @@ This repository contains a complete, production-ready implementation of the Pris
 **Location**: `docs/`
 
 - ✅ **Getting Started Guide** (`getting-started.md`): Complete setup instructions
-- ✅ **Protocol Specification** (`protocol.md`): Detailed protocol documentation
+- ✅ **Protocol Specification** (`protocol.md`): Detailed protocol documentation with all features
+- ✅ **Architecture Guide** (`architecture.md`): Comprehensive object flow diagrams and component interactions
+- ✅ **Implementation Guide** (`implementation-guide.md`): Cross-language implementation guide for Scala/Java/Go teams
+- ✅ **Development Workflow** (`CLAUDE.md`): AI assistant quick reference and development commands
 - ✅ **Backend README** (`backend/README.md`): Python implementation guide
 - ✅ **Client README** (`frontend/packages/prism-client/README.md`): TypeScript client guide
 - ✅ **Main README** (`README.md`): Project overview
@@ -135,32 +169,66 @@ This repository contains a complete, production-ready implementation of the Pris
 Messages appear instantly across all connected clients via WebSocket.
 
 ### 2. Smart Delta Updates
-Server automatically computes and sends deltas when more efficient than full objects.
+Server automatically computes and sends deltas when more efficient than full objects (70% threshold).
 
-### 3. Object Reference Resolution
-Client automatically resolves object references based on cache state:
+### 3. Smart Reference Hydration
+Request Router automatically resolves object references based on client state:
 - Sends full object if client doesn't have it
 - Sends delta if client has older version
 - Marks as cached if client has current version
+- Supports auto-subscription for referenced objects
+- Limits recursive resolution depth (max: 5)
 
-### 4. Intelligent Caching
+### 4. Dynamic Filter Updates
+UpdateFilter feature allows changing filters on active subscriptions without resubscribing:
+- Client-side: `client.updateFilter(objectId, filterType, params)`
+- Vue integration: `usePrismFilter(objectId)`
+- Server-side filter caching with parameter support
+
+### 5. Intelligent Caching
 Three-tier caching system:
-- Server: Version cache, delta cache, filter cache
+- Server: Version cache (LRU, 10K), delta cache (LRU, 5K), filter cache (LRU, 5K)
 - Client: Object cache with version tracking
+- Cache keys include filter parameters for correctness
 
-### 5. Reconnection Handling
+### 6. Reconnection Handling
 Automatic reconnection with exponential backoff and state synchronization.
 
-### 6. Filter System
+### 7. Filter System
 Server-enforced and client-requested filters for security and optimization.
 
 ## Testing Coverage
 
-### Unit Tests (Python)
+### Unit Tests (Python Backend)
 - ✅ Delta computation (8 tests)
 - ✅ Filter system (9 tests)
 - ✅ LRU cache (7 tests)
-- **Total**: 24 tests, all passing
+- ✅ Object Manager (8 tests) - subscriptions, filters, notifications
+- ✅ Request Router (15 tests) - smart hydration, deltas, auto-subscription
+- **Total**: 47 tests, all passing
+- **Coverage**: 48% overall, 82-100% on core library modules
+
+### Unit Tests (TypeScript Client)
+- ✅ Connection lifecycle (2 tests)
+- ✅ Subscribe/unsubscribe (2 tests)
+- ✅ UpdateFilter (4 tests)
+- ✅ Request/response (4 tests)
+- ✅ Watch callbacks (3 tests)
+- ✅ Error handling (4 tests)
+- **Total**: 19 tests, all passing
+
+### Integration Tests
+- ✅ Connection and reconnection
+- ✅ Subscribe/unsubscribe lifecycle
+- ✅ Request/response with smart hydration
+- ✅ UpdateFilter dynamic filter changes
+- ✅ Delta updates for subscribed objects
+- ✅ Multiple client synchronization
+- ✅ Error handling scenarios
+- ✅ Reference hydration and caching
+- ✅ Auto-subscription behavior
+- **Total**: 17 tests, all passing
+- **Advantage**: Tests real client vs real server (no mocks)
 
 ### E2E Tests (Playwright)
 - ✅ Two-user chat
@@ -211,29 +279,37 @@ prism/
 
 ### ✅ Fully Functional
 1. Python backend server with FastAPI
-2. TypeScript client library
-3. Vue composables
+2. TypeScript client library with UpdateFilter support
+3. Vue composables (including usePrismFilter)
 4. Multi-user chat demo
 5. Real-time message synchronization
 6. Delta computation and application
-7. Filter system
-8. Caching (server and client)
+7. Filter system with dynamic updates
+8. Three-tier caching (server and client)
 9. WebSocket transport
 10. Automatic reconnection
+11. Smart reference hydration (RequestRouter)
+12. Auto-subscription for referenced objects
+13. Comprehensive test coverage (83 total tests)
 
 ### 📝 Outlined (Scala)
 1. Core type definitions
 2. Server structure
 3. Play Framework example
 4. Akka HTTP example
+5. Implementation guide for Scala team
 
-### 🔜 Future Enhancements
-1. GraphQL compatibility layer
-2. Predictive pre-fetching
-3. More comprehensive TypeScript tests
-4. Production-ready Scala implementation
-5. Additional storage adapters (MongoDB, Redis)
-6. Horizontal scaling support
+### 🔜 Future Enhancements (See ROADMAP.md)
+1. Pinia store integration for Vue
+2. Multi-component subscription examples
+3. Version synchronization helpers for testing
+4. GraphQL compatibility layer
+5. Predictive pre-fetching
+6. Production-ready Scala implementation
+7. Additional storage adapters (MongoDB, Redis)
+8. Horizontal scaling with Redis pub/sub
+9. Batch update API
+10. Partial object updates
 
 ## Getting Started
 
