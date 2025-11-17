@@ -55,18 +55,19 @@ class PrismObjectManager:
         self.filter_cache: LRUCache[PrismObject] = LRUCache(filter_cache_size)
         self.delta_computer = DeltaComputer()
 
-        # Callback for sending messages to clients
-        self.send_callback: Callable[[str, ServerMessage], Awaitable[None]] | None = None
+        # Callbacks for sending messages to each client (per-client callback map)
+        self.send_callbacks: dict[str, Callable[[ServerMessage], Awaitable[None]]] = {}
 
-    def set_send_callback(
-        self, callback: Callable[[str, ServerMessage], Awaitable[None]]
+    def register_client(
+        self, client_id: str, callback: Callable[[ServerMessage], Awaitable[None]]
     ) -> None:
-        """Set the callback for sending messages to clients.
+        """Register a client's send callback.
 
         Args:
-            callback: Async function(client_id, message)
+            client_id: Client identifier
+            callback: Async function(message) for sending to this client
         """
-        self.send_callback = callback
+        self.send_callbacks[client_id] = callback
 
     def get_client_state(self, client_id: str) -> ClientState:
         """Get or create client state.
@@ -88,6 +89,7 @@ class PrismObjectManager:
             client_id: Client identifier
         """
         self.clients.pop(client_id, None)
+        self.send_callbacks.pop(client_id, None)
 
     async def handle_message(self, client_id: str, message: ClientMessage) -> None:
         """Handle incoming client message.
@@ -163,6 +165,8 @@ class PrismObjectManager:
             client_id: Client identifier
             msg: Sync message with client's current state
         """
+        client = self.get_client_state(client_id)
+
         for state in msg.states:
             current_obj = await self.storage.get_current(state.id)
             if current_obj is None:
@@ -173,6 +177,16 @@ class PrismObjectManager:
 
             # Smart sync
             await self._smart_sync(client_id, state.id, filtered_obj, state.version)
+
+            # Re-register subscription (critical for receiving future updates)
+            subscription = Subscription(
+                object_id=state.id,
+                filter_type=state.filter_type,
+                current_version=filtered_obj.version,
+                temporary=False,
+            )
+            client.subscriptions[state.id] = subscription
+            client.update_version(state.id, filtered_obj.version)
 
     async def handle_update_filter(self, client_id: str, msg: UpdateFilterMessage) -> None:
         """Handle filter update for existing subscription.
@@ -414,5 +428,6 @@ class PrismObjectManager:
             client_id: Client identifier
             message: Message to send
         """
-        if self.send_callback:
-            await self.send_callback(client_id, message)
+        callback = self.send_callbacks.get(client_id)
+        if callback:
+            await callback(message)

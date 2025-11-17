@@ -40,8 +40,8 @@ class WebSocketConnection:
         """Handle WebSocket connection lifecycle."""
         await self.websocket.accept()
 
-        # Set up callback for sending messages
-        self.object_manager.set_send_callback(self._send_to_client)
+        # Register this client's send callback
+        self.object_manager.register_client(self.client_id, self.send_message)
 
         try:
             while True:
@@ -133,13 +133,3 @@ class WebSocketConnection:
                 await self.websocket.send_text(message.model_dump_json())
             except Exception as e:
                 print(f"Error sending message to client {self.client_id}: {e}")
-
-    async def _send_to_client(self, client_id: str, message: ServerMessage) -> None:
-        """Callback for object manager to send messages.
-
-        Args:
-            client_id: Target client ID
-            message: Message to send
-        """
-        if client_id == self.client_id:
-            await self.send_message(message)
