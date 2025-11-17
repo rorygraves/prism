@@ -116,7 +116,8 @@ The setup script checks and installs:
 ./scripts/start-all.sh
 
 # Run all tests
-./scripts/test-all.sh
+./scripts/test-all.sh            # Backend + frontend unit tests + E2E
+./scripts/run-integration-tests.sh  # Integration tests (client vs real backend)
 
 # Check server status
 ./scripts/status.sh
