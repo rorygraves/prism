@@ -2,7 +2,7 @@ package prism.core
 
 import munit.{FunSuite, ScalaCheckSuite}
 import org.scalacheck.Prop._
-import org.scalacheck.{Gen, Prop}
+import org.scalacheck.Gen
 import prism.core.Types.{Delta, PrismObject}
 
 class DeltaComputerSpec extends FunSuite with ScalaCheckSuite {

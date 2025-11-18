@@ -10,7 +10,7 @@ class ProtocolSpec extends FunSuite {
   // ========== Client Messages Tests ==========
 
   test("SubscribeMessage - JSON round-trip") {
-    val msg = ClientMessage.Subscribe(
+    val msg: ClientMessage = ClientMessage.Subscribe(
       SubscribeMessage(
         objectId = "obj-1",
         filterType = Some("fields"),
@@ -32,7 +32,7 @@ class ProtocolSpec extends FunSuite {
   }
 
   test("SubscribeMessage - with defaults") {
-    val msg = ClientMessage.Subscribe(
+    val msg: ClientMessage = ClientMessage.Subscribe(
       SubscribeMessage(objectId = "obj-1")
     )
 
@@ -51,7 +51,7 @@ class ProtocolSpec extends FunSuite {
   }
 
   test("UnsubscribeMessage - JSON round-trip") {
-    val msg = ClientMessage.Unsubscribe(
+    val msg: ClientMessage = ClientMessage.Unsubscribe(
       UnsubscribeMessage(objectId = "obj-1")
     )
 
@@ -70,7 +70,7 @@ class ProtocolSpec extends FunSuite {
       SyncStateItem("obj-1", 5, "default"),
       SyncStateItem("obj-2", 10, "fields")
     )
-    val msg = ClientMessage.Sync(SyncMessage(states))
+    val msg: ClientMessage = ClientMessage.Sync(SyncMessage(states))
 
     val json = write(msg)
     val decoded = read[ClientMessage](json)
@@ -88,7 +88,7 @@ class ProtocolSpec extends FunSuite {
   test("RequestMessage - JSON round-trip") {
     val payload = ujson.Obj("roomId" -> "room-1", "content" -> "Hello")
     val options = ujson.Obj("hydrateRefs" -> true)
-    val msg = ClientMessage.Request(
+    val msg: ClientMessage = ClientMessage.Request(
       RequestMessage(
         requestId = "req-123",
         requestType = "sendMessage",
@@ -111,7 +111,7 @@ class ProtocolSpec extends FunSuite {
   }
 
   test("UpdateFilterMessage - JSON round-trip") {
-    val msg = ClientMessage.UpdateFilter(
+    val msg: ClientMessage = ClientMessage.UpdateFilter(
       UpdateFilterMessage(
         objectId = "obj-1",
         filterType = "exclude",
@@ -142,7 +142,7 @@ class ProtocolSpec extends FunSuite {
 
   test("FullObjectMessage - JSON round-trip") {
     val data = ujson.Obj("name" -> "test", "count" -> 42)
-    val msg = ServerMessage.FullObject(
+    val msg: ServerMessage = ServerMessage.FullObject(
       FullObjectMessage(
         id = "obj-1",
         version = 5,
@@ -167,7 +167,7 @@ class ProtocolSpec extends FunSuite {
   }
 
   test("FullObjectMessage - with defaults") {
-    val msg = ServerMessage.FullObject(
+    val msg: ServerMessage = ServerMessage.FullObject(
       FullObjectMessage(
         id = "obj-1",
         version = 1,
@@ -190,7 +190,7 @@ class ProtocolSpec extends FunSuite {
     val patches = List(
       ujson.Obj("op" -> "replace", "path" -> "/name", "value" -> "new-name")
     )
-    val msg = ServerMessage.Delta(
+    val msg: ServerMessage = ServerMessage.Delta(
       DeltaMessage(
         id = "obj-1",
         fromVersion = 5,
@@ -220,7 +220,7 @@ class ProtocolSpec extends FunSuite {
       HydratedReference("user-1", 3, data = Some(ujson.Obj("name" -> "Alice"))),
       HydratedReference("room-1", 10, cached = true)
     )
-    val msg = ServerMessage.Response(
+    val msg: ServerMessage = ServerMessage.Response(
       ResponseMessage(
         requestId = "req-123",
         success = true,
@@ -246,7 +246,7 @@ class ProtocolSpec extends FunSuite {
   }
 
   test("ResponseMessage - error response") {
-    val msg = ServerMessage.Response(
+    val msg: ServerMessage = ServerMessage.Response(
       ResponseMessage(
         requestId = "req-123",
         success = false,
@@ -268,7 +268,7 @@ class ProtocolSpec extends FunSuite {
   }
 
   test("ErrorMessage - JSON round-trip") {
-    val msg = ServerMessage.Error(
+    val msg: ServerMessage = ServerMessage.Error(
       ErrorMessage(
         code = "OBJECT_NOT_FOUND",
         message = "Object obj-999 not found",
@@ -290,7 +290,7 @@ class ProtocolSpec extends FunSuite {
   }
 
   test("ErrorMessage - with request ID") {
-    val msg = ServerMessage.Error(
+    val msg: ServerMessage = ServerMessage.Error(
       ErrorMessage(
         code = "INVALID_REQUEST",
         message = "Invalid payload",
@@ -320,11 +320,11 @@ class ProtocolSpec extends FunSuite {
   // ========== Protocol Compatibility Tests ==========
 
   test("Protocol - message type discriminator is present") {
-    val subMsg = ClientMessage.Subscribe(SubscribeMessage("obj-1"))
+    val subMsg: ClientMessage = ClientMessage.Subscribe(SubscribeMessage("obj-1"))
     val json = write(subMsg)
     assert(json.contains("\"type\":\"subscribe\""))
 
-    val fullMsg = ServerMessage.FullObject(
+    val fullMsg: ServerMessage = ServerMessage.FullObject(
       FullObjectMessage("obj-1", 1, ujson.Obj())
     )
     val json2 = write(fullMsg)
