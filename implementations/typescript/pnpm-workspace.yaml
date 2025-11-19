@@ -1,0 +1,4 @@
+packages:
+  - 'packages/*'
+  - 'chat-demo'
+  - 'integration-tests'

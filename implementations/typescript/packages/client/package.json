@@ -1,0 +1,58 @@
+{
+  "name": "@prism/client",
+  "version": "0.1.0",
+  "description": "Prism protocol TypeScript client library",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest",
+    "lint": "eslint src --ext .ts",
+    "format": "prettier --write src"
+  },
+  "keywords": [
+    "prism",
+    "realtime",
+    "sync",
+    "websocket",
+    "protocol",
+    "delta-updates",
+    "versioned-objects"
+  ],
+  "author": "Prism Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rorygraves/prism.git",
+    "directory": "implementations/typescript/packages/client"
+  },
+  "homepage": "https://github.com/rorygraves/prism#readme",
+  "bugs": {
+    "url": "https://github.com/rorygraves/prism/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^6.19.0",
+    "@typescript-eslint/parser": "^6.19.0",
+    "eslint": "^8.56.0",
+    "prettier": "^3.2.4",
+    "typescript": "^5.3.3",
+    "vitest": "^1.2.0"
+  },
+  "dependencies": {
+    "fast-json-patch": "^3.1.1"
+  }
+}
