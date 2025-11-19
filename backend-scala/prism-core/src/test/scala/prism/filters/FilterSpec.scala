@@ -73,7 +73,7 @@ class FilterSpec extends FunSuite {
     registry.register(new FieldsFilter())
 
     val obj = PrismObject("obj-1", 1, ujson.Obj("name" -> "Alice", "age" -> 30, "email" -> "alice@example.com"))
-    val params = Some(Map("fields" -> ujson.Arr("name", "age")))
+    val params = Some(ujson.Obj("fields" -> ujson.Arr("name", "age")))
 
     val filtered = registry.apply(obj, "fields", params)
 
@@ -117,7 +117,7 @@ class FilterSpec extends FunSuite {
   test("FieldsFilter - includes only specified fields") {
     val filter = new FieldsFilter()
     val obj = PrismObject("obj-1", 1, ujson.Obj("name" -> "Alice", "age" -> 30, "email" -> "alice@example.com"))
-    val params = Some(Map("fields" -> ujson.Arr("name", "age")))
+    val params = Some(ujson.Obj("fields" -> ujson.Arr("name", "age")))
 
     val filtered = filter.apply(obj, params)
 
@@ -141,7 +141,7 @@ class FilterSpec extends FunSuite {
   test("FieldsFilter - returns original if params missing 'fields' key") {
     val filter = new FieldsFilter()
     val obj = PrismObject("obj-1", 1, ujson.Obj("name" -> "Alice"))
-    val params = Some(Map("other" -> ujson.Str("value")))
+    val params = Some(ujson.Obj("other" -> ujson.Str("value")))
 
     val filtered = filter.apply(obj, params)
 
@@ -151,7 +151,7 @@ class FilterSpec extends FunSuite {
   test("FieldsFilter - handles empty fields list") {
     val filter = new FieldsFilter()
     val obj = PrismObject("obj-1", 1, ujson.Obj("name" -> "Alice", "age" -> 30))
-    val params = Some(Map("fields" -> ujson.Arr()))
+    val params = Some(ujson.Obj("fields" -> ujson.Arr()))
 
     val filtered = filter.apply(obj, params)
 
@@ -161,7 +161,7 @@ class FilterSpec extends FunSuite {
   test("FieldsFilter - handles non-existent fields") {
     val filter = new FieldsFilter()
     val obj = PrismObject("obj-1", 1, ujson.Obj("name" -> "Alice"))
-    val params = Some(Map("fields" -> ujson.Arr("name", "nonexistent")))
+    val params = Some(ujson.Obj("fields" -> ujson.Arr("name", "nonexistent")))
 
     val filtered = filter.apply(obj, params)
 
@@ -181,7 +181,7 @@ class FilterSpec extends FunSuite {
   test("ExcludeFieldsFilter - excludes specified fields") {
     val filter = new ExcludeFieldsFilter()
     val obj = PrismObject("obj-1", 1, ujson.Obj("name" -> "Alice", "age" -> 30, "password" -> "secret"))
-    val params = Some(Map("fields" -> ujson.Arr("password")))
+    val params = Some(ujson.Obj("fields" -> ujson.Arr("password")))
 
     val filtered = filter.apply(obj, params)
 
@@ -206,7 +206,7 @@ class FilterSpec extends FunSuite {
       1,
       ujson.Obj("name" -> "Alice", "age" -> 30, "password" -> "secret", "ssn" -> "123-45-6789")
     )
-    val params = Some(Map("fields" -> ujson.Arr("password", "ssn")))
+    val params = Some(ujson.Obj("fields" -> ujson.Arr("password", "ssn")))
 
     val filtered = filter.apply(obj, params)
 
@@ -242,7 +242,7 @@ class FilterSpec extends FunSuite {
   test("SecurityFilter - ignores params (server-enforced)") {
     val filter = new SecurityFilter(Set("password"))
     val obj = PrismObject("obj-1", 1, ujson.Obj("name" -> "Alice", "password" -> "secret"))
-    val params = Some(Map("fields" -> ujson.Arr("password"))) // Client tries to get password
+    val params = Some(ujson.Obj("fields" -> ujson.Arr("password"))) // Client tries to get password
 
     val filtered = filter.apply(obj, params)
 
@@ -260,7 +260,7 @@ class FilterSpec extends FunSuite {
   // ========== FunctionFilter Tests ==========
 
   test("FunctionFilter - applies custom transformation") {
-    val uppercaseTransform: (ujson.Value, Option[Map[String, ujson.Value]]) => ujson.Value =
+    val uppercaseTransform: (ujson.Value, Option[ujson.Value]) => ujson.Value =
       (data, _) => {
         val result = ujson.Obj()
         data.obj.foreach { case (k, v) =>
@@ -282,9 +282,9 @@ class FilterSpec extends FunSuite {
   }
 
   test("FunctionFilter - uses params") {
-    val addPrefixTransform: (ujson.Value, Option[Map[String, ujson.Value]]) => ujson.Value =
+    val addPrefixTransform: (ujson.Value, Option[ujson.Value]) => ujson.Value =
       (data, params) => {
-        val prefix = params.flatMap(_.get("prefix")).collect { case ujson.Str(s) => s }.getOrElse("")
+        val prefix = params.collect { case o: ujson.Obj => o.obj.get("prefix") }.flatten.collect { case ujson.Str(s) => s }.headOption.getOrElse("")
         val result = ujson.Obj()
         data.obj.foreach { case (k, v) =>
           v match {
@@ -297,7 +297,7 @@ class FilterSpec extends FunSuite {
 
     val filter = new FunctionFilter("addPrefix", addPrefixTransform)
     val obj = PrismObject("obj-1", 1, ujson.Obj("name" -> "Alice"))
-    val params = Some(Map("prefix" -> ujson.Str("Ms. ")))
+    val params = Some(ujson.Obj("prefix" -> ujson.Str("Ms. ")))
 
     val filtered = filter.apply(obj, params)
 

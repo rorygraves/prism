@@ -1,8 +1,8 @@
 package prism.core
 
-import upickle.default._
+import prism.core.PickleConfig._
 
-/** Core Prism types and data structures. *
+/** Core Prism types and data structures.
   *
   * These types are immutable and represent the fundamental building blocks of the Prism protocol.
   */
@@ -79,7 +79,7 @@ object Types {
     /** Convert to Map for JSON serialization */
     def toMap: Map[String, Any] = {
       val base: Map[String, Any] = Map("id" -> id, "version" -> version)
-      val withFilter = filterType.fold(base)(ft => base + ("filterType" -> ft))
+      val withFilter = filterType.fold(base)(ft => base + ("filter_type" -> ft))
       if (subscribe) withFilter + ("subscribe" -> true) else withFilter
     }
   }
@@ -157,7 +157,7 @@ object Types {
   final case class Subscription(
       objectId: String,
       filterType: String = "default",
-      filterParams: Option[Map[String, ujson.Value]] = None,
+      filterParams: Option[ujson.Value] = None,
       currentVersion: Int = 0,
       temporary: Boolean = false
   ) {

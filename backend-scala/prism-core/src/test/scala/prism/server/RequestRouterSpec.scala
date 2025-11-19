@@ -131,7 +131,7 @@ class RequestRouterSpec extends FunSuite {
     val (router, manager, storage) = createRouter()
     val obj = PrismObject("obj-1", 1, ujson.Obj("name" -> "Alice", "age" -> 30, "email" -> "alice@example.com"))
     val ref = ObjectReference(id = "obj-1", version = 0)
-    val params = Some(Map("fields" -> ujson.Arr("name", "age")))
+    val params = Some(ujson.Obj("fields" -> ujson.Arr("name", "age")))
 
     val result = runIO {
       for {

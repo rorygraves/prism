@@ -16,10 +16,11 @@ import org.http4s.websocket.WebSocketFrame._
 import org.slf4j.LoggerFactory
 import prism.core.Protocol._
 import prism.core.Types._
+import prism.core.DeltaComputer
 import prism.filters.CommonFilters
 import prism.server.{ObjectManager, RequestRouter}
 import prism.storage.MemoryStorageAdapter
-import upickle.default._
+import prism.core.PickleConfig._
 
 import java.util.UUID
 
@@ -84,6 +85,12 @@ object Main extends IOApp {
             clientState = ClientState.empty
             connection = ClientConnection(clientId, sendQueue, clientState, chatHandler, requestRouter, objectManager)
 
+            // Register client callback for receiving server messages
+            _ <- objectManager.registerClient(clientId, (msg: ServerMessage) => {
+              val json = write(msg)
+              sendQueue.offer(Text(json))
+            })
+
             // Subscribe client to object updates
             _ <- subscribeToObjectUpdates(connection)
 
@@ -94,10 +101,7 @@ object Main extends IOApp {
             fromClient: Pipe[IO, WebSocketFrame, Unit] = stream =>
               stream.evalMap {
                 case Text(msg, _) =>
-                  handleMessage(connection, msg).handleErrorWith { error =>
-                    logger.error(s"[WEBSOCKET] Error handling message: ${error.getMessage}", error)
-                    sendError(connection, error.getMessage)
-                  }
+                  handleMessage(connection, msg)
                 case Close(_) =>
                   logger.info(s"[WEBSOCKET] Client $clientId disconnected")
                   objectManager.removeClientState(clientId)
@@ -129,7 +133,13 @@ object Main extends IOApp {
 
   /** Handle incoming WebSocket message */
   private def handleMessage(conn: ClientConnection, msg: String): IO[Unit] = {
-    for {
+    // Try to extract requestId early for error handling
+    val requestIdOpt = scala.util.Try {
+      val json = ujson.read(msg)
+      json.obj.get("request_id").map(_.str)
+    }.toOption.flatten
+
+    val result = for {
       json <- IO(ujson.read(msg))
       messageType = json("type").str
       _ = logger.info(s"[WEBSOCKET] Received from ${conn.clientId}: $messageType")
@@ -152,9 +162,14 @@ object Main extends IOApp {
 
         case _ =>
           logger.error(s"[WEBSOCKET] Unknown message type: $messageType")
-          sendError(conn, s"Unknown message type: $messageType")
+          sendError(conn, s"Unknown message type: $messageType", requestId = requestIdOpt)
       }
     } yield ()
+
+    result.handleErrorWith { error =>
+      logger.error(s"[WEBSOCKET] Message handling failed: ${error.getMessage}", error)
+      sendError(conn, error.getMessage, requestId = requestIdOpt)
+    }
   }
 
   private def handleSubscribe(conn: ClientConnection, json: ujson.Value): IO[Unit] = {
@@ -192,9 +207,12 @@ object Main extends IOApp {
   }
 
   private def handleRequest(conn: ClientConnection, json: ujson.Value): IO[Unit] = {
-    val msg = read[RequestMessage](json)
+    // Try to extract requestId early in case parsing fails later
+    val requestIdOpt = scala.util.Try(json.obj.get("request_id").map(_.str)).toOption.flatten
 
-    for {
+    val result = for {
+      msg <- IO(read[RequestMessage](json))
+
       // Handle business logic request
       resultData <- conn.chatHandler.process(msg.requestType, msg.payload)
 
@@ -225,9 +243,11 @@ object Main extends IOApp {
       // Clear temporary subscriptions
       _ <- conn.objectManager.clearTemporarySubscriptions(conn.clientId)
     } yield ()
-  }.handleErrorWith { error =>
-    logger.error(s"[WEBSOCKET] Request failed: ${error.getMessage}", error)
-    sendError(conn, error.getMessage, requestId = Some(read[RequestMessage](json).requestId))
+
+    result.handleErrorWith { error =>
+      logger.error(s"[WEBSOCKET] Request failed: ${error.getMessage}", error)
+      sendError(conn, error.getMessage, requestId = requestIdOpt)
+    }
   }
 
   private def handleUpdateFilter(conn: ClientConnection, json: ujson.Value): IO[Unit] = {
@@ -243,11 +263,138 @@ object Main extends IOApp {
   }
 
   private def handleSync(conn: ClientConnection, json: ujson.Value): IO[Unit] = {
-    val _ = conn // Unused for now, but kept for future use
     val msg = read[SyncMessage](json)
     logger.info(s"[WEBSOCKET] Sync requested with ${msg.states.length} states")
-    // For demo, just acknowledge
-    IO.unit
+
+    for {
+      // Get server's view of client state
+      clientState <- conn.objectManager.getClientState(conn.clientId)
+
+      // Create map of client's reported state for quick lookup
+      clientStateMap = msg.states.map(s => s.id -> s).toMap
+
+      // Process each object the client reports having
+      _ <- msg.states.traverse { syncItem =>
+        clientState.subscriptions.get(syncItem.id) match {
+          case Some(serverSub) =>
+            // Client has subscription that server knows about - check version
+            if (syncItem.version < serverSub.currentVersion) {
+              // Client is behind, send update
+              logger.info(s"[WEBSOCKET] Sync: Client behind on ${syncItem.id} (client: ${syncItem.version}, server: ${serverSub.currentVersion})")
+              conn.objectManager.getObject(syncItem.id, Some(serverSub.currentVersion)).flatMap {
+                case Some(obj) =>
+                  // Check if filter changed
+                  if (syncItem.filterType != serverSub.filterType) {
+                    // Filter changed, send full object
+                    logger.info(s"[WEBSOCKET] Sync: Filter changed for ${syncItem.id}, sending full object")
+                    val response = ServerMessage.FullObject(FullObjectMessage(
+                      id = obj.id,
+                      version = obj.version,
+                      data = obj.data
+                    ))
+                    sendMessage(conn, response)
+                  } else {
+                    // Same filter, can send delta
+                    conn.objectManager.getObject(syncItem.id, Some(syncItem.version)).flatMap {
+                      case Some(oldObj) =>
+                        val delta = DeltaComputer.computeDelta(oldObj, obj)
+                        if (delta.patches.nonEmpty) {
+                          logger.info(s"[WEBSOCKET] Sync: Sending delta for ${syncItem.id}")
+                          val response = ServerMessage.Delta(DeltaMessage(
+                            id = obj.id,
+                            fromVersion = oldObj.version,
+                            toVersion = obj.version,
+                            patches = delta.patches,
+                            filterType = Some(serverSub.filterType)
+                          ))
+                          sendMessage(conn, response)
+                        } else {
+                          IO.unit
+                        }
+                      case None =>
+                        // Old version not found, send full object
+                        logger.info(s"[WEBSOCKET] Sync: Old version not found for ${syncItem.id}, sending full object")
+                        val response = ServerMessage.FullObject(FullObjectMessage(
+                          id = obj.id,
+                          version = obj.version,
+                          data = obj.data
+                        ))
+                        sendMessage(conn, response)
+                    }
+                  }
+                case None =>
+                  logger.warn(s"[WEBSOCKET] Sync: Object ${syncItem.id} not found despite subscription")
+                  IO.unit
+              }
+            } else if (syncItem.version > serverSub.currentVersion) {
+              // Client is ahead (shouldn't happen normally)
+              logger.warn(s"[WEBSOCKET] Sync: Client ahead on ${syncItem.id} (client: ${syncItem.version}, server: ${serverSub.currentVersion})")
+              // Send full object to resync
+              conn.objectManager.getObject(syncItem.id).flatMap {
+                case Some(obj) =>
+                  val response = ServerMessage.FullObject(FullObjectMessage(
+                    id = obj.id,
+                    version = obj.version,
+                    data = obj.data
+                  ))
+                  sendMessage(conn, response)
+                case None =>
+                  IO.unit
+              }
+            } else {
+              // Versions match, no update needed
+              IO.unit
+            }
+
+          case None =>
+            // Client has subscription that server doesn't know about
+            // This happens after reconnection - re-subscribe
+            logger.info(s"[WEBSOCKET] Sync: Re-subscribing to ${syncItem.id}")
+            conn.objectManager.subscribe(
+              conn.clientId,
+              syncItem.id,
+              syncItem.filterType,
+              None,
+              ongoing = true  // Assume ongoing subscription
+            ).flatMap {
+              case Some(obj) =>
+                val response = ServerMessage.FullObject(FullObjectMessage(
+                  id = obj.id,
+                  version = obj.version,
+                  data = obj.data
+                ))
+                sendMessage(conn, response)
+              case None =>
+                logger.warn(s"[WEBSOCKET] Sync: Failed to subscribe to ${syncItem.id}")
+                IO.unit
+            }
+        }
+      }
+
+      // Find subscriptions server has that client doesn't
+      serverOnlySubscriptions = clientState.subscriptions.filter {
+        case (objectId, _) => !clientStateMap.contains(objectId)
+      }
+
+      // Send full objects for subscriptions client is missing
+      _ <- serverOnlySubscriptions.toList.traverse { case (objectId, subscription) =>
+        logger.info(s"[WEBSOCKET] Sync: Client missing subscription to $objectId, sending full object")
+        conn.objectManager.getObject(objectId).flatMap {
+          case Some(obj) =>
+            val response = ServerMessage.FullObject(FullObjectMessage(
+              id = obj.id,
+              version = obj.version,
+              data = obj.data
+            ))
+            sendMessage(conn, response)
+          case None =>
+            logger.warn(s"[WEBSOCKET] Sync: Object $objectId not found despite server subscription")
+            IO.unit
+        }
+      }
+
+      _ = logger.info(s"[WEBSOCKET] Sync completed for ${conn.clientId}")
+    } yield ()
   }
 
   /** Subscribe client to object update notifications */

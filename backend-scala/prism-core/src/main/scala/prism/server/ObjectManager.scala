@@ -5,6 +5,7 @@ import cats.syntax.all._
 import prism.cache.LRUCache
 import prism.core.DeltaComputer
 import prism.core.Types._
+import prism.core.Protocol._
 import prism.filters.FilterRegistry
 import prism.storage.StorageAdapter
 
@@ -25,6 +26,8 @@ import prism.storage.StorageAdapter
   *   Registry of available filters
   * @param clientStates
   *   Mapping of client IDs to their state
+  * @param sendCallbacks
+  *   Mapping of client IDs to their send message callbacks
   * @param versionCache
   *   Cache for object versions
   * @param deltaCache
@@ -36,10 +39,22 @@ class ObjectManager private (
     storage: StorageAdapter,
     filterRegistry: FilterRegistry,
     clientStates: Ref[IO, Map[String, ClientState]],
+    sendCallbacks: Ref[IO, Map[String, ServerMessage => IO[Unit]]],
     versionCache: LRUCache[String, PrismObject],
     deltaCache: LRUCache[(String, Int, Int, Option[String]), Delta],
-    filterCache: LRUCache[(String, Int, String, Option[Map[String, ujson.Value]]), PrismObject]
+    filterCache: LRUCache[(String, Int, String, Option[ujson.Value]), PrismObject]
 ) {
+
+  /** Register a client's send callback for receiving server messages.
+    *
+    * @param clientId
+    *   Client identifier
+    * @param callback
+    *   Function to send ServerMessage to this client
+    */
+  def registerClient(clientId: String, callback: ServerMessage => IO[Unit]): IO[Unit] = {
+    sendCallbacks.update(_ + (clientId -> callback))
+  }
 
   /** Get or create client state for a given client ID.
     *
@@ -65,7 +80,10 @@ class ObjectManager private (
     *   Client identifier to remove
     */
   def removeClientState(clientId: String): IO[Unit] = {
-    clientStates.update(_ - clientId)
+    for {
+      _ <- clientStates.update(_ - clientId)
+      _ <- sendCallbacks.update(_ - clientId)
+    } yield ()
   }
 
   /** Subscribe a client to an object.
@@ -87,7 +105,7 @@ class ObjectManager private (
       clientId: String,
       objectId: String,
       filterType: String = "default",
-      filterParams: Option[Map[String, ujson.Value]] = None,
+      filterParams: Option[ujson.Value] = None,
       ongoing: Boolean = false
   ): IO[Option[PrismObject]] = {
     for {
@@ -140,7 +158,7 @@ class ObjectManager private (
       clientId: String,
       objectId: String,
       filterType: String,
-      filterParams: Option[Map[String, ujson.Value]]
+      filterParams: Option[ujson.Value]
   ): IO[Unit] = {
     for {
       clientState <- getClientState(clientId)
@@ -281,7 +299,7 @@ class ObjectManager private (
   def applyFilter(
       obj: PrismObject,
       filterType: Option[String],
-      filterParams: Option[Map[String, ujson.Value]] = None
+      filterParams: Option[ujson.Value] = None
   ): IO[PrismObject] = {
     filterType match {
       case None => IO.pure(obj)
@@ -364,6 +382,169 @@ class ObjectManager private (
       clientState <- getClientState(clientId)
     } yield clientState.getActiveSubscriptions
   }
+
+  /** Notify all subscribed clients when an object is updated.
+    *
+    * This is the key method for real-time synchronization. When an object changes,
+    * this method sends delta or fullObject messages to all subscribed clients.
+    *
+    * @param obj
+    *   The updated object
+    * @return
+    *   Number of clients notified
+    */
+  def notifyObjectUpdated(obj: PrismObject): IO[Int] = {
+    for {
+      // Update version cache
+      _ <- versionCache.put(s"${obj.id}:${obj.version}", obj)
+
+      // Get all clients and their subscriptions
+      states <- clientStates.get
+
+      // Send updates to all subscribed clients
+      _ <- states.toList.traverse { case (clientId, state) =>
+        state.getSubscription(obj.id) match {
+          case Some(subscription) if !subscription.temporary =>
+            sendUpdate(clientId, obj, subscription)
+          case _ =>
+            IO.unit
+        }
+      }
+    } yield states.count { case (_, state) =>
+      state.getSubscription(obj.id).exists(!_.temporary)
+    }
+  }
+
+  /** Send update to a specific client.
+    *
+    * @param clientId
+    *   Client identifier
+    * @param obj
+    *   Updated object
+    * @param subscription
+    *   Client's subscription
+    */
+  private def sendUpdate(clientId: String, obj: PrismObject, subscription: Subscription): IO[Unit] = {
+    for {
+      // Apply filter
+      filtered <- applyFilter(obj, if (subscription.filterType == "default") None else Some(subscription.filterType), subscription.filterParams)
+
+      // Smart sync
+      _ <- smartSync(clientId, obj.id, filtered)
+    } yield ()
+  }
+
+  /** Intelligently sync object with client based on their current state.
+    *
+    * @param clientId
+    *   Client identifier
+    * @param objectId
+    *   Object ID
+    * @param currentObj
+    *   Current filtered object
+    * @param knownVersion
+    *   Version client has (if known)
+    */
+  private def smartSync(clientId: String, objectId: String, currentObj: PrismObject, knownVersion: Option[Int] = None): IO[Unit] = {
+    for {
+      clientState <- getClientState(clientId)
+
+      version = knownVersion.orElse(clientState.getVersion(objectId))
+
+      _ <- version match {
+        case None =>
+          // Client doesn't have object - send full
+          sendFullObject(clientId, currentObj)
+        case Some(v) if v < currentObj.version =>
+          // Client has older version - try delta
+          sendDeltaOrFull(clientId, objectId, v, currentObj)
+        case _ =>
+          // Client has current version, no update needed
+          IO.unit
+      }
+
+      // Update client's known version
+      _ = clientState.updateVersion(objectId, currentObj.version)
+    } yield ()
+  }
+
+  /** Send delta if efficient, otherwise full object.
+    *
+    * @param clientId
+    *   Client identifier
+    * @param objectId
+    *   Object ID
+    * @param fromVersion
+    *   Client's current version
+    * @param toObj
+    *   Target object
+    */
+  private def sendDeltaOrFull(clientId: String, objectId: String, fromVersion: Int, toObj: PrismObject): IO[Unit] = {
+    for {
+      // Try to compute delta
+      deltaOpt <- getDelta(objectId, fromVersion, toObj.version)
+
+      _ <- deltaOpt match {
+        case Some(delta) if DeltaComputer.isDeltaEfficient(delta, toObj) =>
+          // Delta is efficient - send it
+          sendDelta(clientId, delta)
+        case _ =>
+          // Delta too large or unavailable - send full object
+          sendFullObject(clientId, toObj)
+      }
+    } yield ()
+  }
+
+  /** Send full object to client.
+    *
+    * @param clientId
+    *   Client identifier
+    * @param obj
+    *   Object to send
+    */
+  private def sendFullObject(clientId: String, obj: PrismObject): IO[Unit] = {
+    val message = ServerMessage.FullObject(FullObjectMessage(
+      id = obj.id,
+      version = obj.version,
+      data = obj.data,
+      filtered = true
+    ))
+    sendMessage(clientId, message)
+  }
+
+  /** Send delta to client.
+    *
+    * @param clientId
+    *   Client identifier
+    * @param delta
+    *   Delta to send
+    */
+  private def sendDelta(clientId: String, delta: Delta): IO[Unit] = {
+    val message = ServerMessage.Delta(DeltaMessage(
+      id = delta.objectId,
+      fromVersion = delta.fromVersion,
+      toVersion = delta.toVersion,
+      patches = delta.patches
+    ))
+    sendMessage(clientId, message)
+  }
+
+  /** Send message to client via callback.
+    *
+    * @param clientId
+    *   Client identifier
+    * @param message
+    *   Message to send
+    */
+  private def sendMessage(clientId: String, message: ServerMessage): IO[Unit] = {
+    for {
+      callbacks <- sendCallbacks.get
+      _ <- callbacks.get(clientId) match {
+        case Some(callback) => callback(message)
+        case None => IO.unit // Client not connected or callback not registered
+      }
+    } yield ()
+  }
 }
 
 object ObjectManager {
@@ -392,11 +573,12 @@ object ObjectManager {
   ): IO[ObjectManager] = {
     for {
       clientStates <- Ref.of[IO, Map[String, ClientState]](Map.empty)
+      sendCallbacks <- Ref.of[IO, Map[String, ServerMessage => IO[Unit]]](Map.empty)
       versionCache <- LRUCache.create[String, PrismObject](versionCacheSize)
       deltaCache <- LRUCache.create[(String, Int, Int, Option[String]), Delta](deltaCacheSize)
-      filterCache <- LRUCache.create[(String, Int, String, Option[Map[String, ujson.Value]]), PrismObject](
+      filterCache <- LRUCache.create[(String, Int, String, Option[ujson.Value]), PrismObject](
         filterCacheSize
       )
-    } yield new ObjectManager(storage, filterRegistry, clientStates, versionCache, deltaCache, filterCache)
+    } yield new ObjectManager(storage, filterRegistry, clientStates, sendCallbacks, versionCache, deltaCache, filterCache)
   }
 }

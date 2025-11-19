@@ -1,7 +1,7 @@
 package prism.core
 
 import prism.core.Types.HydratedReference
-import upickle.default._
+import prism.core.PickleConfig._
 
 /** Prism protocol message definitions.
   *
@@ -15,7 +15,7 @@ object Protocol {
   final case class SubscribeMessage(
       objectId: String,
       filterType: Option[String] = None,
-      filterParams: Option[Map[String, ujson.Value]] = None,
+      filterParams: Option[ujson.Value] = None,
       temporary: Boolean = false
   )
 
@@ -68,7 +68,7 @@ object Protocol {
   final case class UpdateFilterMessage(
       objectId: String,
       filterType: String,
-      filterParams: Option[Map[String, ujson.Value]] = None
+      filterParams: Option[ujson.Value] = None
   )
 
   object UpdateFilterMessage {

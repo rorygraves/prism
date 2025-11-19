@@ -7,9 +7,9 @@ class FieldsFilter(override val clientMutable: Boolean = true) extends Filter {
   override val name: String = "fields"
   override val cacheable: Boolean = true
 
-  override def apply(obj: PrismObject, params: Option[Map[String, ujson.Value]] = None): PrismObject = {
+  override def apply(obj: PrismObject, params: Option[ujson.Value] = None): PrismObject = {
     params match {
-      case Some(p) if p.contains("fields") =>
+      case Some(p: ujson.Obj) if p.obj.contains("fields") =>
         p("fields") match {
           case ujson.Arr(fields) =>
             val fieldNames = fields.collect { case ujson.Str(s) => s }.toSet
@@ -31,9 +31,9 @@ class ExcludeFieldsFilter(override val clientMutable: Boolean = true) extends Fi
   override val name: String = "exclude"
   override val cacheable: Boolean = true
 
-  override def apply(obj: PrismObject, params: Option[Map[String, ujson.Value]] = None): PrismObject = {
+  override def apply(obj: PrismObject, params: Option[ujson.Value] = None): PrismObject = {
     params match {
-      case Some(p) if p.contains("fields") =>
+      case Some(p: ujson.Obj) if p.obj.contains("fields") =>
         p("fields") match {
           case ujson.Arr(fields) =>
             val excludeFields = fields.collect { case ujson.Str(s) => s }.toSet
@@ -56,7 +56,7 @@ class SecurityFilter(hiddenFields: Set[String]) extends Filter {
   override val cacheable: Boolean = true
   override val clientMutable: Boolean = false // Server-only
 
-  override def apply(obj: PrismObject, params: Option[Map[String, ujson.Value]] = None): PrismObject = {
+  override def apply(obj: PrismObject, params: Option[ujson.Value] = None): PrismObject = {
     val filteredData = ujson.Obj()
     obj.data.obj.foreach {
       case (k, v) if !hiddenFields.contains(k) => filteredData(k) = v
@@ -72,7 +72,7 @@ class DefaultFilter extends Filter {
   override val cacheable: Boolean = true
   override val clientMutable: Boolean = true
 
-  override def apply(obj: PrismObject, params: Option[Map[String, ujson.Value]] = None): PrismObject = obj
+  override def apply(obj: PrismObject, params: Option[ujson.Value] = None): PrismObject = obj
 }
 
 object CommonFilters {

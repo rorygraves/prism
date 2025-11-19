@@ -2,7 +2,7 @@ package prism.core
 
 import munit.FunSuite
 import prism.core.Types._
-import upickle.default._
+import prism.core.PickleConfig._
 
 class TypesSpec extends FunSuite {
 
@@ -184,7 +184,7 @@ class TypesSpec extends FunSuite {
   }
 
   test("Subscription - create with custom values") {
-    val params = Some(Map("fields" -> ujson.Arr("name", "id")))
+    val params = Some(ujson.Obj("fields" -> ujson.Arr("name", "id")))
     val sub = Subscription(
       objectId = "obj-1",
       filterType = "fields",

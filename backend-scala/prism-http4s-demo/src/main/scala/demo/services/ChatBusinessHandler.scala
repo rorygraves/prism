@@ -177,7 +177,7 @@ class ChatBusinessHandler(
           _ <- storage.save(newObj)
           _ = logger.info(s"[JOIN_ROOM] Saved new room version: ${newObj.version}")
           // Notify subscribers
-          _ <- objectManager.notifySubscribers(newObj)
+          _ <- objectManager.notifyObjectUpdated(newObj)
           _ = logger.info(s"[JOIN_ROOM] Notified subscribers")
         } yield ujson.Obj("room" -> refToJson(ObjectReference(id = req.roomId, version = newObj.version)))
       } else {
@@ -216,7 +216,7 @@ class ChatBusinessHandler(
         logger.info(s"[SEND_MESSAGE] Updated room_messages")
       }
       // Notify subscribers about new message
-      _ <- objectManager.notifySubscribers(obj)
+      _ <- objectManager.notifyObjectUpdated(obj)
       _ = logger.info(s"[SEND_MESSAGE] Notified subscribers about new message")
     } yield {
       ujson.Obj(
@@ -316,7 +316,7 @@ class ChatBusinessHandler(
       _ = logger.info(s"[UPDATE_ROOM_LIST] Saved room list, version $newVersion, ${roomIds.length} room IDs")
 
       // Notify all subscribers
-      _ <- objectManager.notifySubscribers(newObj)
+      _ <- objectManager.notifyObjectUpdated(newObj)
       _ = logger.info(s"[UPDATE_ROOM_LIST] Notified all subscribers about room list update")
     } yield ()
   }

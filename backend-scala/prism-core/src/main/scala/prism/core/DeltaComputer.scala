@@ -1,7 +1,7 @@
 package prism.core
 
 import prism.core.Types.{Delta, PrismObject}
-import upickle.default._
+import prism.core.PickleConfig._
 
 import scala.collection.mutable
 

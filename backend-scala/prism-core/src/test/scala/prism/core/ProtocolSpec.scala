@@ -3,7 +3,7 @@ package prism.core
 import munit.FunSuite
 import prism.core.Protocol._
 import prism.core.Types.HydratedReference
-import upickle.default._
+import prism.core.PickleConfig._
 
 class ProtocolSpec extends FunSuite {
 
@@ -14,7 +14,7 @@ class ProtocolSpec extends FunSuite {
       SubscribeMessage(
         objectId = "obj-1",
         filterType = Some("fields"),
-        filterParams = Some(Map("fields" -> ujson.Arr("name", "id"))),
+        filterParams = Some(ujson.Obj("fields" -> ujson.Arr("name", "id"))),
         temporary = true
       )
     )
@@ -38,7 +38,7 @@ class ProtocolSpec extends FunSuite {
 
     val json = write(msg)
     assert(json.contains("\"type\":\"subscribe\""))
-    assert(json.contains("\"objectId\":\"obj-1\""))
+    assert(json.contains("\"object_id\":\"obj-1\""))
 
     val decoded = read[ClientMessage](json)
     decoded match {
@@ -115,7 +115,7 @@ class ProtocolSpec extends FunSuite {
       UpdateFilterMessage(
         objectId = "obj-1",
         filterType = "exclude",
-        filterParams = Some(Map("fields" -> ujson.Arr("password")))
+        filterParams = Some(ujson.Obj("fields" -> ujson.Arr("password")))
       )
     )
 

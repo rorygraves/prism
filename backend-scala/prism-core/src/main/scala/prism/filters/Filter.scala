@@ -28,18 +28,18 @@ trait Filter {
     * @return
     *   Filtered PrismObject (same ID and version, transformed data)
     */
-  def apply(obj: PrismObject, params: Option[Map[String, ujson.Value]] = None): PrismObject
+  def apply(obj: PrismObject, params: Option[ujson.Value] = None): PrismObject
 }
 
 /** Filter that wraps a simple transformation function. */
 class FunctionFilter(
     val name: String,
-    transform: (ujson.Value, Option[Map[String, ujson.Value]]) => ujson.Value,
+    transform: (ujson.Value, Option[ujson.Value]) => ujson.Value,
     val cacheable: Boolean = true,
     val clientMutable: Boolean = false
 ) extends Filter {
 
-  override def apply(obj: PrismObject, params: Option[Map[String, ujson.Value]] = None): PrismObject = {
+  override def apply(obj: PrismObject, params: Option[ujson.Value] = None): PrismObject = {
     val filteredData = transform(obj.data, params)
     PrismObject(id = obj.id, version = obj.version, data = filteredData)
   }
@@ -76,7 +76,7 @@ class FilterRegistry {
     */
   def registerFunction(
       name: String,
-      transform: (ujson.Value, Option[Map[String, ujson.Value]]) => ujson.Value,
+      transform: (ujson.Value, Option[ujson.Value]) => ujson.Value,
       cacheable: Boolean = true,
       clientMutable: Boolean = false
   ): Unit = {
@@ -114,7 +114,7 @@ class FilterRegistry {
   def apply(
       obj: PrismObject,
       filterName: String,
-      params: Option[Map[String, ujson.Value]] = None
+      params: Option[ujson.Value] = None
   ): PrismObject = {
     val filter = get(filterName)
     filter.apply(obj, params)

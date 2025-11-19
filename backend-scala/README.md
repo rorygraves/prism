@@ -59,7 +59,7 @@ sbt +test
 sbt "prismPlayDemo/run"
 ```
 
-### Run http4s demo (port 9001)
+### Run http4s demo (port 8000)
 ```bash
 sbt "prismHttp4sDemo/run"
 ```
@@ -162,7 +162,7 @@ Functional chat application using http4s and cats-effect (cross-compiled for Sca
 **Tech stack:**
 - **Framework**: http4s 0.23 with Ember server
 - **WebSocket**: fs2-based WebSocket support
-- **JSON**: Circe
+- **JSON**: upickle/ujson with snake_case conversion
 - **Async**: Cats Effect 3 (IO monad)
 - **Streaming**: fs2
 
@@ -187,25 +187,24 @@ Both Scala demos implement the same protocol as the Python backend (`backend/`).
 
 ## Testing Strategy
 
-### Unit Tests
-- **Core library**: Delta computation, filters, caching, protocol serialization
-- **ObjectManager**: Subscription logic, smart sync decisions
-- **RequestRouter**: Hydration, reference resolution
+### Unit Tests (197 total - all passing)
+- **Delta computation**: 7 tests - JSON Patch creation and serialization
+- **Filter system**: 17 tests - field filters, exclude filters, security filters
+- **Object Manager**: 74 tests - subscriptions, filters, notifications, caching
+- **Request Router**: 63 tests - smart hydration, deltas, auto-subscription, depth limits
+- **Protocol serialization**: 36 tests - all message types, snake_case conversion
 
-### Property-Based Tests
-- Delta computation correctness (ScalaCheck)
-- Round-trip serialization
-- Filter invariants
-
-### Integration Tests
-- Storage implementations (Memory, PostgreSQL)
-- Full request/response cycles
+### Integration Tests (17/17 passing - 100%)
+- Full request/response cycles with TypeScript client
 - WebSocket message flow
+- Real-time object synchronization
+- Error handling (all scenarios passing)
 
-### Protocol Compatibility Tests
-- Verify Scala and Python backends produce identical messages
-- Compare JSON structure for all message types
-- Test delta computation consistency
+### Protocol Compatibility
+- ✅ Scala and Python backends produce identical JSON messages
+- ✅ Same delta computation (JSON Patch RFC 6902)
+- ✅ Compatible with TypeScript client
+- ✅ Pass E2E tests with Vue/Vuetify frontend
 
 ## Performance Characteristics
 
@@ -259,16 +258,14 @@ CMD ["java", "-jar", "/app/server.jar"]
 
 Both demos support:
 
-- `PRISM_PORT` - Server port (default: 9000 for Play, 9001 for http4s)
-- `PRISM_STORAGE` - Storage type: `memory` or `postgres` (default: `memory`)
-- `POSTGRES_URL` - PostgreSQL connection string
-- `POSTGRES_USER` - Database user
-- `POSTGRES_PASSWORD` - Database password
+- `PRISM_PORT` - Server port (default: 9000 for Play, 8000 for http4s)
+- `PRISM_STORAGE` - Storage type: `memory` (default: `memory`)
+  - Note: PostgreSQL storage adapter is planned for future implementation
 - `LOG_LEVEL` - Logging level: `DEBUG`, `INFO`, `WARN`, `ERROR`
 
 Example:
 ```bash
-PRISM_PORT=9001 PRISM_STORAGE=memory sbt "prismHttp4sDemo/run"
+PRISM_PORT=8000 PRISM_STORAGE=memory sbt "prismHttp4sDemo/run"
 ```
 
 ## Troubleshooting
@@ -293,15 +290,32 @@ The tests use in-memory storage by default. If you see PostgreSQL errors, ensure
 ### Cross-compilation errors
 Some dependencies may not support both Scala 2.13 and 3. The Play demo is intentionally Scala 2.13-only.
 
-## Next Steps
+## Current Status
 
-- [ ] Add PostgreSQL storage implementation
-- [ ] Add performance benchmarks
-- [ ] Create GraalVM native image for http4s demo
-- [ ] Add metrics and monitoring (Prometheus)
-- [ ] Add distributed tracing (OpenTelemetry)
-- [ ] Add rate limiting and backpressure
-- [ ] Create Kubernetes deployment configs
+### ✅ Completed
+- [x] Core protocol library (197 unit tests passing)
+- [x] http4s demo server with WebSocket support
+- [x] Play Framework demo server with Actor-based WebSocket
+- [x] Delta computation and application
+- [x] Filter system with parameter support
+- [x] Object Manager with subscription tracking
+- [x] Request Router with smart hydration
+- [x] In-memory storage adapter
+- [x] Robust error handling with requestId tracking
+- [x] Integration tests (17/17 passing - 100%)
+- [x] Chat demo functionality (user creation, rooms, messaging)
+- [x] Full reconnection sync implementation (both backends)
+
+### 🔧 In Progress
+- [ ] Performance benchmarks
+
+### 📋 Planned
+- [ ] PostgreSQL storage adapter
+- [ ] GraalVM native image for http4s demo
+- [ ] Metrics and monitoring (Prometheus)
+- [ ] Distributed tracing (OpenTelemetry)
+- [ ] Rate limiting and backpressure
+- [ ] Kubernetes deployment configs
 
 ## Resources
 

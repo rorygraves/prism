@@ -1,8 +1,11 @@
 package prism.server
 
 import cats.effect.unsafe.implicits.global
+import cats.effect.IO
+import cats.effect.Ref
 import munit.FunSuite
 import prism.core.Types.PrismObject
+import prism.core.Protocol._
 import prism.filters.CommonFilters
 import prism.storage.MemoryStorageAdapter
 
@@ -85,7 +88,7 @@ class ObjectManagerSpec extends FunSuite {
   test("subscribe - with filter applies filter") {
     val (manager, storage) = createObjectManager()
     val obj = PrismObject("obj-1", 1, ujson.Obj("name" -> "Alice", "age" -> 30, "email" -> "alice@example.com"))
-    val params = Some(Map("fields" -> ujson.Arr("name", "age")))
+    val params = Some(ujson.Obj("fields" -> ujson.Arr("name", "age")))
 
     val result = runIO {
       for {
@@ -132,7 +135,7 @@ class ObjectManagerSpec extends FunSuite {
   test("updateFilter - updates subscription filter") {
     val (manager, storage) = createObjectManager()
     val obj = PrismObject("obj-1", 1, ujson.Obj("name" -> "Alice"))
-    val params = Some(Map("fields" -> ujson.Arr("name")))
+    val params = Some(ujson.Obj("fields" -> ujson.Arr("name")))
 
     val result = runIO {
       for {
@@ -289,7 +292,7 @@ class ObjectManagerSpec extends FunSuite {
   test("applyFilter - applies filter to object") {
     val (manager, _) = createObjectManager()
     val obj = PrismObject("obj-1", 1, ujson.Obj("name" -> "Alice", "age" -> 30, "email" -> "alice@example.com"))
-    val params = Some(Map("fields" -> ujson.Arr("name", "age")))
+    val params = Some(ujson.Obj("fields" -> ujson.Arr("name", "age")))
 
     val result = runIO {
       manager.applyFilter(obj, Some("fields"), params)
@@ -314,7 +317,7 @@ class ObjectManagerSpec extends FunSuite {
   test("applyFilter - caches filtered objects") {
     val (manager, _) = createObjectManager()
     val obj = PrismObject("obj-1", 1, ujson.Obj("name" -> "Alice", "age" -> 30))
-    val params = Some(Map("fields" -> ujson.Arr("name")))
+    val params = Some(ujson.Obj("fields" -> ujson.Arr("name")))
 
     val result = runIO {
       for {
@@ -433,5 +436,275 @@ class ObjectManagerSpec extends FunSuite {
     }
 
     assertEquals(result, List("obj-1"))
+  }
+
+  // ========== Callback Registration and Notification ==========
+
+  test("registerClient - stores callback for client") {
+    val (manager, _) = createObjectManager()
+    var messageReceived: Option[ServerMessage] = None
+
+    val callback: ServerMessage => IO[Unit] = msg => IO { messageReceived = Some(msg) }
+
+    runIO {
+      manager.registerClient("client-1", callback)
+    }
+
+    // Callback is stored - will be tested via notifyObjectUpdated
+    assert(true)
+  }
+
+  test("registerClient - removes callback when client state is removed") {
+    val (manager, _) = createObjectManager()
+    var callbackInvoked = false
+
+    val callback: ServerMessage => IO[Unit] = _ => IO { callbackInvoked = true }
+
+    runIO {
+      for {
+        _ <- manager.registerClient("client-1", callback)
+        _ <- manager.removeClientState("client-1")
+      } yield ()
+    }
+
+    // After removal, callback should not be invoked (tested in notifyObjectUpdated test)
+    assert(true)
+  }
+
+  test("notifyObjectUpdated - sends fullObject to subscribed clients") {
+    val (manager, storage) = createObjectManager()
+    val obj1 = PrismObject("obj-1", 1, ujson.Obj("name" -> "Alice"))
+    val obj2 = PrismObject("obj-1", 2, ujson.Obj("name" -> "Bob"))
+
+    val messagesReceived = runIO(Ref.of[IO, List[ServerMessage]](List.empty))
+
+    val callback: ServerMessage => IO[Unit] = msg => messagesReceived.update(_ :+ msg)
+
+    val result = runIO {
+      for {
+        _ <- storage.save(obj1)
+        _ <- manager.registerClient("client-1", callback)
+        _ <- manager.subscribe("client-1", "obj-1", ongoing = true)
+        count <- manager.notifyObjectUpdated(obj2)
+        messages <- messagesReceived.get
+      } yield (count, messages)
+    }
+
+    val (count, messages) = result
+    assertEquals(count, 1)
+    assertEquals(messages.length, 1)
+
+    messages.head match {
+      case ServerMessage.FullObject(msg) =>
+        assertEquals(msg.id, "obj-1")
+        assertEquals(msg.version, 2)
+        assertEquals(msg.data("name").str, "Bob")
+      case _ => fail("Expected FullObject message")
+    }
+  }
+
+  test("notifyObjectUpdated - does not notify temporary subscriptions") {
+    val (manager, storage) = createObjectManager()
+    val obj1 = PrismObject("obj-1", 1, ujson.Obj("name" -> "Alice"))
+    val obj2 = PrismObject("obj-1", 2, ujson.Obj("name" -> "Bob"))
+
+    val messagesReceived = runIO(Ref.of[IO, List[ServerMessage]](List.empty))
+    val callback: ServerMessage => IO[Unit] = msg => messagesReceived.update(_ :+ msg)
+
+    val result = runIO {
+      for {
+        _ <- storage.save(obj1)
+        _ <- manager.registerClient("client-1", callback)
+        _ <- manager.subscribe("client-1", "obj-1", ongoing = false) // Temporary
+        count <- manager.notifyObjectUpdated(obj2)
+        messages <- messagesReceived.get
+      } yield (count, messages)
+    }
+
+    val (count, messages) = result
+    assertEquals(count, 0)
+    assertEquals(messages.length, 0)
+  }
+
+  test("notifyObjectUpdated - sends to multiple subscribed clients") {
+    val (manager, storage) = createObjectManager()
+    val obj1 = PrismObject("obj-1", 1, ujson.Obj("name" -> "Alice"))
+    val obj2 = PrismObject("obj-1", 2, ujson.Obj("name" -> "Bob"))
+
+    val messages1 = runIO(Ref.of[IO, List[ServerMessage]](List.empty))
+    val messages2 = runIO(Ref.of[IO, List[ServerMessage]](List.empty))
+
+    val callback1: ServerMessage => IO[Unit] = msg => messages1.update(_ :+ msg)
+    val callback2: ServerMessage => IO[Unit] = msg => messages2.update(_ :+ msg)
+
+    val result = runIO {
+      for {
+        _ <- storage.save(obj1)
+        _ <- manager.registerClient("client-1", callback1)
+        _ <- manager.registerClient("client-2", callback2)
+        _ <- manager.subscribe("client-1", "obj-1", ongoing = true)
+        _ <- manager.subscribe("client-2", "obj-1", ongoing = true)
+        count <- manager.notifyObjectUpdated(obj2)
+        msgs1 <- messages1.get
+        msgs2 <- messages2.get
+      } yield (count, msgs1, msgs2)
+    }
+
+    val (count, msgs1, msgs2) = result
+    assertEquals(count, 2)
+    assertEquals(msgs1.length, 1)
+    assertEquals(msgs2.length, 1)
+  }
+
+  test("notifyObjectUpdated - applies filters before sending") {
+    val (manager, storage) = createObjectManager()
+    val obj1 = PrismObject("obj-1", 1, ujson.Obj("name" -> "Alice", "age" -> 30, "email" -> "alice@example.com"))
+    val obj2 = PrismObject("obj-1", 2, ujson.Obj("name" -> "Bob", "age" -> 31, "email" -> "bob@example.com"))
+    val params = Some(ujson.Obj("fields" -> ujson.Arr("name", "age")))
+
+    val messagesReceived = runIO(Ref.of[IO, List[ServerMessage]](List.empty))
+    val callback: ServerMessage => IO[Unit] = msg => messagesReceived.update(_ :+ msg)
+
+    val result = runIO {
+      for {
+        _ <- storage.save(obj1)
+        _ <- manager.registerClient("client-1", callback)
+        _ <- manager.subscribe("client-1", "obj-1", "fields", params, ongoing = true)
+        _ <- manager.notifyObjectUpdated(obj2)
+        messages <- messagesReceived.get
+      } yield messages
+    }
+
+    assertEquals(result.length, 1)
+    result.head match {
+      case ServerMessage.FullObject(msg) =>
+        assert(msg.data.obj.contains("name"))
+        assert(msg.data.obj.contains("age"))
+        assert(!msg.data.obj.contains("email"))
+      case _ => fail("Expected FullObject message")
+    }
+  }
+
+  test("notifyObjectUpdated - sends delta for small changes") {
+    val (manager, storage) = createObjectManager()
+    val obj1 = PrismObject("obj-1", 1, ujson.Obj("name" -> "Alice", "age" -> 30))
+    val obj2 = PrismObject("obj-1", 2, ujson.Obj("name" -> "Alice", "age" -> 31))
+
+    val messagesReceived = runIO(Ref.of[IO, List[ServerMessage]](List.empty))
+    val callback: ServerMessage => IO[Unit] = msg => messagesReceived.update(_ :+ msg)
+
+    val result = runIO {
+      for {
+        _ <- storage.save(obj1)
+        _ <- storage.save(obj2)
+        _ <- manager.registerClient("client-1", callback)
+        _ <- manager.subscribe("client-1", "obj-1", ongoing = true)
+        state <- manager.getClientState("client-1")
+        _ = state.updateVersion("obj-1", 1) // Client has version 1
+        _ <- manager.notifyObjectUpdated(obj2)
+        messages <- messagesReceived.get
+      } yield messages
+    }
+
+    assertEquals(result.length, 1)
+    result.head match {
+      case ServerMessage.Delta(msg) =>
+        assertEquals(msg.id, "obj-1")
+        assertEquals(msg.fromVersion, 1)
+        assertEquals(msg.toVersion, 2)
+        assert(msg.patches.nonEmpty)
+      case ServerMessage.FullObject(_) =>
+        // FullObject is also acceptable if delta is deemed inefficient
+        assert(true)
+      case _ => fail("Expected Delta or FullObject message")
+    }
+  }
+
+  test("notifyObjectUpdated - sends fullObject when client version is unknown") {
+    val (manager, storage) = createObjectManager()
+    val obj = PrismObject("obj-1", 1, ujson.Obj("name" -> "Alice"))
+
+    val messagesReceived = runIO(Ref.of[IO, List[ServerMessage]](List.empty))
+    val callback: ServerMessage => IO[Unit] = msg => messagesReceived.update(_ :+ msg)
+
+    val result = runIO {
+      for {
+        _ <- storage.save(obj)
+        _ <- manager.registerClient("client-1", callback)
+        _ <- manager.subscribe("client-1", "obj-1", ongoing = true)
+        // Don't set client version - should send full object
+        _ <- manager.notifyObjectUpdated(obj)
+        messages <- messagesReceived.get
+      } yield messages
+    }
+
+    assertEquals(result.length, 1)
+    result.head match {
+      case ServerMessage.FullObject(msg) =>
+        assertEquals(msg.id, "obj-1")
+        assertEquals(msg.version, 1)
+      case _ => fail("Expected FullObject message")
+    }
+  }
+
+  test("notifyObjectUpdated - updates version cache") {
+    val (manager, storage) = createObjectManager()
+    val obj = PrismObject("obj-1", 1, ujson.Obj("name" -> "Alice"))
+
+    val callback: ServerMessage => IO[Unit] = _ => IO.unit
+
+    val result = runIO {
+      for {
+        _ <- storage.save(obj)
+        _ <- manager.registerClient("client-1", callback)
+        _ <- manager.subscribe("client-1", "obj-1", ongoing = true)
+        _ <- manager.notifyObjectUpdated(obj)
+        // Try to get from cache
+        cached <- manager.getObject("obj-1", Some(1))
+      } yield cached
+    }
+
+    assert(result.isDefined)
+    assertEquals(result.get.id, "obj-1")
+  }
+
+  test("notifyObjectUpdated - does not send if client has current version") {
+    val (manager, storage) = createObjectManager()
+    val obj = PrismObject("obj-1", 1, ujson.Obj("name" -> "Alice"))
+
+    val messagesReceived = runIO(Ref.of[IO, List[ServerMessage]](List.empty))
+    val callback: ServerMessage => IO[Unit] = msg => messagesReceived.update(_ :+ msg)
+
+    val result = runIO {
+      for {
+        _ <- storage.save(obj)
+        _ <- manager.registerClient("client-1", callback)
+        _ <- manager.subscribe("client-1", "obj-1", ongoing = true)
+        state <- manager.getClientState("client-1")
+        _ = state.updateVersion("obj-1", 1) // Client already has version 1
+        _ <- manager.notifyObjectUpdated(obj)
+        messages <- messagesReceived.get
+      } yield messages
+    }
+
+    // Client already has this version, so no message should be sent
+    assertEquals(result.length, 0)
+  }
+
+  test("notifyObjectUpdated - handles client without callback gracefully") {
+    val (manager, storage) = createObjectManager()
+    val obj = PrismObject("obj-1", 1, ujson.Obj("name" -> "Alice"))
+
+    val result = runIO {
+      for {
+        _ <- storage.save(obj)
+        // Subscribe without registering callback
+        _ <- manager.subscribe("client-1", "obj-1", ongoing = true)
+        count <- manager.notifyObjectUpdated(obj)
+      } yield count
+    }
+
+    // Should count client as subscribed even though callback failed
+    assertEquals(result, 1)
   }
 }

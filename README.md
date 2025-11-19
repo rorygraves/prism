@@ -9,8 +9,11 @@ Prism is a lightweight, language-agnostic library for real-time object synchroni
 ```
 prism/
 ├── backend/              # Python implementation (FastAPI + PostgreSQL)
+├── backend-scala/        # Scala implementations (http4s + Play Framework)
+│   ├── prism-core/      # Core protocol library
+│   ├── prism-http4s-demo/  # http4s demo server
+│   └── prism-play-demo/    # Play Framework demo server
 ├── frontend/             # TypeScript client and Vue/Vuetify demo
-├── scala/                # Scala implementation outline
 ├── e2e/                  # Playwright end-to-end tests
 └── docs/                 # Documentation
 ```
@@ -55,12 +58,24 @@ The `setup.sh` script handles **complete environment setup** including:
 
 ### Manual Setup
 
-**Backend (Python)**
+**Backend - Python (FastAPI)**
 
 ```bash
 cd backend
 poetry install
 poetry run uvicorn chat_demo.main:app --reload
+```
+
+**Backend - Scala (http4s or Play Framework)**
+
+```bash
+cd backend-scala
+
+# Run http4s demo (port 8000)
+sbt "prismHttp4sDemo/run"
+
+# Or run Play Framework demo (port 9000)
+sbt "prismPlayDemo/run"
 ```
 
 **Frontend (TypeScript/Vue)**
@@ -94,9 +109,23 @@ npm test
 
 See the [docs](./docs/) directory for detailed documentation:
 - [Protocol Specification](./docs/protocol.md)
-- [Python Backend Guide](./backend/README.md)
+- **Backend Implementations:**
+  - [Python Backend Guide (FastAPI)](./backend/README.md)
+  - [Scala Backend Guide (http4s + Play)](./backend-scala/README.md)
 - [TypeScript Client Guide](./frontend/packages/prism-client/README.md)
 - [Chat Demo Tutorial](./docs/chat-demo.md)
+
+## Implementation Status
+
+| Component | Python | Scala | TypeScript |
+|-----------|--------|-------|------------|
+| Core Protocol | ✅ Complete | ✅ Complete | ✅ Complete |
+| WebSocket Server | ✅ FastAPI | ✅ http4s + Play | - |
+| Client Library | - | - | ✅ Complete |
+| Vue Integration | - | - | ✅ Complete |
+| Unit Tests | 24/24 ✅ | 197/197 ✅ | - |
+| Integration Tests | 17/17 ✅ | 17/17 ✅ | ✅ Complete |
+| Chat Demo | ✅ Complete | ✅ Complete | ✅ Complete |
 
 ## License
 
