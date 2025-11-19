@@ -1,0 +1,22 @@
+{
+  "entryPoints": [
+    "packages/client/src/index.ts",
+    "packages/vue/src/index.ts"
+  ],
+  "entryPointStrategy": "packages",
+  "out": "../../docs/api/typescript",
+  "name": "Prism TypeScript API",
+  "navigationLinks": {
+    "Home": "https://github.com/rorygraves/prism",
+    "Protocol Spec": "https://github.com/rorygraves/prism/blob/main/spec/protocol.md"
+  },
+  "includeVersion": true,
+  "excludePrivate": true,
+  "excludeProtected": false,
+  "excludeExternals": true,
+  "readme": "none",
+  "theme": "default",
+  "plugin": [],
+  "searchInComments": true,
+  "cleanOutputDir": true
+}

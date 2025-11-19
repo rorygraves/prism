@@ -13,12 +13,14 @@
     "build": "npm run build:client && npm run build:vue",
     "dev": "npm run dev --workspace=chat-demo",
     "test": "vitest",
-    "lint": "eslint packages --ext .ts && eslint chat-demo/src --ext .ts,.vue"
+    "lint": "eslint packages --ext .ts && eslint chat-demo/src --ext .ts,.vue",
+    "docs": "typedoc"
   },
   "devDependencies": {
     "@types/node": "^20.11.5",
     "eslint": "^8.56.0",
     "prettier": "^3.2.4",
+    "typedoc": "^0.25.0",
     "typescript": "^5.3.3",
     "vitest": "^1.2.0"
   }

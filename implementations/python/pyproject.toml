@@ -49,6 +49,11 @@ ruff = "^0.1.0"
 httpx = "^0.26.0"
 faker = "^22.0.0"
 
+[tool.poetry.group.docs.dependencies]
+sphinx = "^7.2.0"
+sphinx-rtd-theme = "^2.0.0"
+sphinx-autodoc-typehints = "^1.25.0"
+
 [tool.ruff]
 line-length = 100
 target-version = "py311"

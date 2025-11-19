@@ -1,0 +1,118 @@
+site_name: Prism
+site_description: A versioned object synchronization protocol with implementations in Python, Scala, and TypeScript
+site_author: Prism Team
+site_url: https://rorygraves.github.io/prism
+
+repo_name: rorygraves/prism
+repo_url: https://github.com/rorygraves/prism
+edit_uri: edit/main/docs/
+
+copyright: Copyright &copy; 2025 Prism Team
+
+theme:
+  name: material
+  palette:
+    # Light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+
+plugins:
+  - search
+  - git-revision-date-localized:
+      enable_creation_date: true
+  - minify:
+      minify_html: true
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - admonition
+  - pymdownx.details
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Installation: getting-started/installation.md
+      - Python Quickstart: getting-started/quickstart-python.md
+      - TypeScript Quickstart: getting-started/quickstart-typescript.md
+      - Scala Quickstart: getting-started/quickstart-scala.md
+      - Vue Quickstart: getting-started/quickstart-vue.md
+  - Guides:
+      - Core Concepts: guides/concepts.md
+      - Subscriptions: guides/subscriptions.md
+      - Filters: guides/filters.md
+      - Storage Adapters: guides/storage-adapters.md
+      - Error Handling: guides/error-handling.md
+      - Performance Tuning: guides/performance-tuning.md
+  - API Reference:
+      - Python API: api/python/index.html
+      - TypeScript API: api/typescript/index.html
+      - Scala API: api/scala/index.html
+  - Protocol:
+      - Specification: protocol/specification.md
+      - Message Types: protocol/message-types.md
+      - Delta Computation: protocol/delta-computation.md
+      - Architecture: protocol/architecture.md
+  - Examples:
+      - Chat Demo: examples/chat-demo.md
+      - Cookbook: examples/cookbook.md
+  - Contributing:
+      - Development Guide: contributing/development.md
+      - Testing: contributing/testing.md
+      - Adding a Language: contributing/adding-language.md
+      - Release Process: contributing/release-process.md
+  - Roadmap: roadmap.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/rorygraves/prism
+      name: Prism on GitHub
+  analytics:
+    provider: google
+    property: !ENV GOOGLE_ANALYTICS_KEY
+  version:
+    provider: mike
